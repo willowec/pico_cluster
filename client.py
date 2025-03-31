@@ -11,6 +11,7 @@ import serial
 import serial.tools.list_ports
 
 COMMAND_TRANS_IMSTART='TRANS_IMAGE'
+COMMAND_TRANS_KSTART='TRANS_KERNEL'
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -24,6 +25,9 @@ if __name__ == "__main__":
     im = Image.open(args.imfile)
     im = im.convert(mode='RGB')
     ima = np.asarray(im)
+
+    # hardcode sharpen kernel for testing
+    kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
 
     # look for ports
     ports = [tuple(p)[0] for p in list(serial.tools.list_ports.comports())]
@@ -44,12 +48,23 @@ if __name__ == "__main__":
         # tell cluster we are about to send an image
         ser.write((COMMAND_TRANS_IMSTART + '\n').encode('utf-8'))
 
-        # send image size as a string for convenience (its variable length)
-        ser.write(f'{np.prod(ima.shape)}\n'.encode('utf-8'))
+        # send image width and heights as strings (the head node knows that the color channel is always 3)
+        ser.write(f'{ima.shape[1]}\n'.encode('utf-8')) # width
+        ser.write(f'{ima.shape[0]}\n'.encode('utf-8')) # height
 
         # send image in rgb rgb rgb rgb pixel by pixel
         ser.write(ima.flatten().tobytes())
-        
-        # now read responses line by line
-        while 1:
-            print(ser.read_until())
+
+        print(ser.read_until())
+
+        # tell the cluster we are about to send a kernel
+        ser.write((COMMAND_TRANS_KSTART + '\n').encode('utf-8'))
+
+        # send kernel w, h
+        ser.write(f'{kernel.shape[1]}\n'.encode('utf-8')) # width
+        ser.write(f'{kernel.shape[0]}\n'.encode('utf-8')) # height
+
+        # send kernel data
+        ser.write(kernel.flatten().tobytes())
+
+        print(ser.read_until())

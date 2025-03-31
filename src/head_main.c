@@ -67,7 +67,8 @@ void read_stdio(char *buf, int buflen)
 int main() {
 	char buf[128];
     int i;
-    int im_size;
+    int im_width, im_height, k_width, k_height;
+    unsigned long long start_time;
 
     // Enable UART so we can print status output
     stdio_init_all();
@@ -84,6 +85,10 @@ int main() {
 
     sleep_ms(1000);
 
+    start_time = to_us_since_boot(get_absolute_time());
+
+    /* get the image and kernel from the client over serial */
+
     // read from usb stdio waiting for image transmission start
     while(1) {
         read_stdio(buf, 128);
@@ -92,28 +97,42 @@ int main() {
         }
     }
 
-    // now read the image size
+    // now read the image width and height
     read_stdio(buf, 128);
-    im_size = atoi(buf);
-
-    char *image_data = malloc(sizeof(char) * im_size);
-    if (image_data == NULL) {
-        printf("unable to reserve space for image_data!\n");
-        return 1;
-    }
+    im_width = atoi(buf);
+    read_stdio(buf, 128);
+    im_height = atoi(buf);
 
     // now read the image itself
-    for(i=0; i<im_size; i++) {
+    char *image_data = malloc(sizeof(char) * im_width*im_height*3);
+    for(i=0; i<im_width*im_height*3; i++) {
         image_data[i] = getchar();
-        printf("read byte %d\n", image_data[i]);
     }
 
-    // now print what we got
-    printf("Read an image of size %d:\n", im_size);
-    for(i=0; i<im_size; i++) {
-        printf(" %d", image_data[i]);
+    printf("Loaded image of size %d, shape (%d %d %d). Took %lluus\n", im_width*im_height*3, im_width, im_height, 3, to_us_since_boot(get_absolute_time()) - start_time);
+
+    start_time = to_us_since_boot(get_absolute_time());
+    // read from usb stdio waiting for kernel transmission start
+    while(1) {
+        read_stdio(buf, 128);
+        if (strcmp("TRANS_KERNEL", buf) == 0) {
+            break;
+        }
     }
-    printf("\n");
+
+    // now read the kernel width and height
+    read_stdio(buf, 128);
+    k_width = atoi(buf);
+    read_stdio(buf, 128);
+    k_height = atoi(buf);
+
+    // finally, allocate and read the kernel
+    char *kernel_data = malloc(sizeof(char) * k_width*k_height);
+    for(i=0; i<k_width*k_height; i++) {
+        kernel_data[i] = getchar();
+    }
+
+    printf("Loaded kernel of size %d, shape (%d %d %d)Took %lluus\n", k_width*k_height, k_width, k_height, 1, to_us_since_boot(get_absolute_time()) - start_time);
 
     return 0;
 }
