@@ -8,7 +8,11 @@ Read at your own risk.
 
 Got head pico to at least see compute pico on i2c using the i2c_slave library.
 Very cool.
-Next up, I want to be able to set the address with GPIO - I need at least 4 slave address configs, so 2 GPIO
 
+Next up, I want to be able to set the address with GPIO - I need at least 4 slave address configs, so 2 GPIO... done.
 
-After that, I want to standardize communications. Send data, receive data, etc
+Next, I want to standardize communications. 
+Send data, receive data, etc.
+How to do.
+
+Hmm, honestly it might be easier to start with sending image data to the pico from serial, right. Lets do that first.
