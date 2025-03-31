@@ -27,7 +27,7 @@ int main() {
     power_on_blink();
 
     // init the i2c as leader
-    i2c_init(i2c_default, 100 * 1000);
+    i2c_init(i2c_default, I2C_BAUDRATE);
     gpio_set_function(12, GPIO_FUNC_I2C);
     gpio_set_function(13, GPIO_FUNC_I2C);
     gpio_pull_up(12);
