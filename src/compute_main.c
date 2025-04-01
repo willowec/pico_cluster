@@ -60,6 +60,8 @@ static void setup_i2c() {
     i2c_slave_init(i2c0, addr, &i2c_slave_handler);
 }
 
+
+
 int main() {
     // Enable UART so we can print status output
     stdio_init_all();

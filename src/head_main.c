@@ -104,8 +104,8 @@ int main() {
     im_height = atoi(buf);
 
     // now read the image itself
-    char *image_data = malloc(sizeof(char) * im_width*im_height*3);
-    for(i=0; i<im_width*im_height*3; i++) {
+    char *image_data = malloc(sizeof(char) * im_width*im_height*COLOR_CHANNEL_COUNT);
+    for(i=0; i<im_width*im_height*COLOR_CHANNEL_COUNT; i++) {
         image_data[i] = getchar();
     }
 
@@ -132,7 +132,33 @@ int main() {
         kernel_data[i] = getchar();
     }
 
-    printf("Loaded kernel of size %d, shape (%d %d %d)Took %lluus\n", k_width*k_height, k_width, k_height, 1, to_us_since_boot(get_absolute_time()) - start_time);
+    printf("Loaded kernel of size %d, shape (%d %d %d). Took %lluus\n", k_width*k_height, k_width, k_height, 1, to_us_since_boot(get_absolute_time()) - start_time);
+
+
+    // TODO TEMP: do a convolve on  the head
+    char *image_out = calloc(im_width*im_height*COLOR_CHANNEL_COUNT, sizeof(char));
+    convolve(image_data, im_width, im_height, kernel_data, k_width, k_height, 0, im_height, image_out);
+
+    // send the result back!
+    //for(i=0; i<im_width*im_height*COLOR_CHANNEL_COUNT; i++) {
+    //    putchar_raw(image_out[i]);
+    //}
+    //fflush(stdout);
+    for(i=0; i<im_width*im_height*COLOR_CHANNEL_COUNT; i++) {
+        printf("%d\n", image_out[i]);
+    }
+    fflush(stdout);
+
+    // indicate computation done
+    pico_set_led(true);
+
+    /* now we have an image and a kernel. */
+    /* we need to split the image up into four chunks and send the chunks along */
+    /* with the kernel to the compute nodes. Over i2c. */
+
+    // could transmit to each node only the data it needs to know about, and then reassemble on head
+    // so each node gets a quarter of the data and the head keeps track of which node got which quarter
+    // and re-assembles it afterwards
 
     return 0;
 }

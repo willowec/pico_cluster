@@ -10,6 +10,8 @@ import numpy as np
 import serial
 import serial.tools.list_ports
 
+import matplotlib.pyplot as plt
+
 COMMAND_TRANS_IMSTART='TRANS_IMAGE'
 COMMAND_TRANS_KSTART='TRANS_KERNEL'
 
@@ -42,6 +44,8 @@ if __name__ == "__main__":
 
     print(f'Sending {args.imfile.name} to cluster at {port}')
 
+    print(ima)
+    print(ima.flatten())
 
     # connect to the PMI
     with serial.Serial(port, baudrate=115200, timeout=10) as ser:
@@ -68,3 +72,14 @@ if __name__ == "__main__":
         ser.write(kernel.flatten().tobytes())
 
         print(ser.read_until())
+
+        # now wait for response
+        out = np.empty_like(ima.flatten(), dtype=np.uint8)
+        for i in range(len(out)):
+            out[i] = int(ser.read_until())
+            print(i, out[i])
+
+        ser.close()
+
+    plt.imshow(Image.fromarray(out.reshape((im.width, im.height, 3)), 'RGB'))
+    plt.show()

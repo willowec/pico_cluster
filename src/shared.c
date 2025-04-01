@@ -25,3 +25,43 @@ void power_on_blink()
         sleep_ms(100);
     }
 }
+
+
+char get_pixel_channel(int x, int y, int channel, char *image_data, int im_width, int im_height /* technically unused but it feels wrong to omit */)
+{
+    return image_data[y*im_width*COLOR_CHANNEL_COUNT + x*COLOR_CHANNEL_COUNT + channel];
+}
+
+
+void convolve(char *im, int im_width, int im_height, char *kernel, int k_width, int k_height, int y_start, int y_end, char *out_im)
+{
+    int c, x, y, kx, ky;
+    int color, sum;
+
+    /* implementation based heavily on code by Professor Weaver. */
+
+    /* bound the border */
+    if (y_start < (k_height-1)/2) y_start = (k_height-1)/2;
+    if (y_end > im_width - (k_height-1)/2) y_end = im_width - (k_height-1)/2;
+
+    /* for each color channel, for each image x, y, for each kernel x, y... */
+    for(c=0; c<COLOR_CHANNEL_COUNT; c++) {
+        for (x = (k_width-1)/2; x < im_width - (k_width-1)/2; x++) {
+            for (y = y_start; y < y_end; y++) {
+                sum = 0;
+                for (kx = -(k_width-1)/2; kx < (k_width-1)/2; kx++) {
+                    for (ky = -(k_height-1)/2; ky < (k_height-1)/2; ky++) {
+                        /* sum all the parts touched by the kernel */
+                        color = im[((y+ky)*im_width*COLOR_CHANNEL_COUNT)+(x*COLOR_CHANNEL_COUNT+c+kx*COLOR_CHANNEL_COUNT)];
+                        sum += color * kernel[(ky+(k_height-1)/2)*k_width+(kx+(k_width-1)/2)];
+                    }
+                }
+
+                if (sum < 0) sum = 0;
+                if (sum > 255) sum = 255;
+
+                out_im[(y*im_width*COLOR_CHANNEL_COUNT)+x*COLOR_CHANNEL_COUNT+c] = sum;
+            }
+        }
+    }
+}
