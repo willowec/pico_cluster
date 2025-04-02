@@ -44,9 +44,6 @@ if __name__ == "__main__":
 
     print(f'Sending {args.imfile.name} to cluster at {port}')
 
-    print(ima)
-    print(ima.flatten())
-
     # connect to the PMI
     with serial.Serial(port, baudrate=115200, timeout=10) as ser:
         # tell cluster we are about to send an image
@@ -69,17 +66,19 @@ if __name__ == "__main__":
         ser.write(f'{kernel.shape[0]}\n'.encode('utf-8')) # height
 
         # send kernel data
-        ser.write(kernel.flatten().tobytes())
+        ser.write(kernel.flatten().astype(dtype=np.int8).tobytes())
 
         print(ser.read_until())
 
         # now wait for response
         out = np.empty_like(ima.flatten(), dtype=np.uint8)
+        while True:
+            print(ser.read_until())
+
         for i in range(len(out)):
             out[i] = int(ser.read_until())
-            print(i, out[i])
 
-        ser.close()
+        print('closed')
 
     plt.imshow(Image.fromarray(out.reshape((im.width, im.height, 3)), 'RGB'))
     plt.show()

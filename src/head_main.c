@@ -132,8 +132,9 @@ int main() {
         kernel_data[i] = getchar();
     }
 
-    printf("Loaded kernel of size %d, shape (%d %d %d). Took %lluus\n", k_width*k_height, k_width, k_height, 1, to_us_since_boot(get_absolute_time()) - start_time);
+    for(i=0; i<k_width*k_height; i++) printf("%d ", kernel_data[i]);
 
+    printf("Loaded kernel of size %d, shape (%d %d %d). Took %lluus\n", k_width*k_height, k_width, k_height, 1, to_us_since_boot(get_absolute_time()) - start_time);
 
     // TODO TEMP: do a convolve on  the head
     char *image_out = calloc(im_width*im_height*COLOR_CHANNEL_COUNT, sizeof(char));

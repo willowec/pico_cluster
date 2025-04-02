@@ -1,5 +1,6 @@
 #include "pico/stdlib.h"
 #include "shared.h"
+#include <stdio.h>
 
 int pico_led_init()
 {
@@ -36,7 +37,7 @@ char get_pixel_channel(int x, int y, int channel, char *image_data, int im_width
 void convolve(char *im, int im_width, int im_height, char *kernel, int k_width, int k_height, int y_start, int y_end, char *out_im)
 {
     int c, x, y, kx, ky;
-    int color, sum;
+    int color, sum, idx;
 
     /* implementation based heavily on code by Professor Weaver. */
 
@@ -44,18 +45,24 @@ void convolve(char *im, int im_width, int im_height, char *kernel, int k_width, 
     if (y_start < (k_height-1)/2) y_start = (k_height-1)/2;
     if (y_end > im_width - (k_height-1)/2) y_end = im_width - (k_height-1)/2;
 
+    //for(idx=0; idx<im_width*im_height*COLOR_CHANNEL_COUNT; idx++) printf("%d: %d\n", idx, im[idx]);
+    //printf("STARTING IMAGE\n\n\n\n\n");
+
     /* for each color channel, for each image x, y, for each kernel x, y... */
     for(c=0; c<COLOR_CHANNEL_COUNT; c++) {
         for (x = (k_width-1)/2; x < im_width - (k_width-1)/2; x++) {
             for (y = y_start; y < y_end; y++) {
                 sum = 0;
-                for (kx = -(k_width-1)/2; kx < (k_width-1)/2; kx++) {
-                    for (ky = -(k_height-1)/2; ky < (k_height-1)/2; ky++) {
+                for (kx = -(k_width-1)/2; kx < (k_width-1)/2 + 1; kx++) {
+                    for (ky = -(k_height-1)/2; ky < (k_height-1)/2 + 1; ky++) {
                         /* sum all the parts touched by the kernel */
-                        color = im[((y+ky)*im_width*COLOR_CHANNEL_COUNT)+(x*COLOR_CHANNEL_COUNT+c+kx*COLOR_CHANNEL_COUNT)];
-                        sum += color * kernel[(ky+(k_height-1)/2)*k_width+(kx+(k_width-1)/2)];
+                        idx = ((y+ky)*im_width*COLOR_CHANNEL_COUNT)+(x*COLOR_CHANNEL_COUNT+c+kx*COLOR_CHANNEL_COUNT);
+                        color = im[idx];
+                        printf("idx=%d, color=%d, k=%d\n", idx, color, kernel[((ky+(k_height-1)/2)*k_height)+(kx+k_width/2)]);
+                        sum += color * kernel[((ky+(k_height-1)/2)*k_height)+(kx+k_width/2)];
                     }
                 }
+                printf("sum: %d\n", sum);
 
                 if (sum < 0) sum = 0;
                 if (sum > 255) sum = 255;
