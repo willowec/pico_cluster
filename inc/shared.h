@@ -17,4 +17,4 @@ char get_pixel_channel(int x, int y, int channel, char *image_data, int im_width
 /*
  * convolves a kernel across an image with three color channels
  */
-void convolve(char *im, int im_width, int im_height, char *kernel, int k_width, int k_height, int y_start, int y_end, char *out_im);
+void convolve(char *im, int im_width, int im_height, int *kernel, int k_width, int k_height, int y_start, int y_end, char *out_im);

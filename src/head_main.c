@@ -127,10 +127,12 @@ int main() {
     k_height = atoi(buf);
 
     // finally, allocate and read the kernel
-    char *kernel_data = malloc(sizeof(char) * k_width*k_height);
+    int *kernel_data = malloc(sizeof(int) * k_width*k_height);
     for(i=0; i<k_width*k_height; i++) {
-        kernel_data[i] = getchar();
+        kernel_data[i] = (char)getchar();
+        if (kernel_data[i] > 127) kernel_data[i] -= 256; //cursed manual signed type cast, normal cast to char doesn't seem to work...
     }
+
 
     for(i=0; i<k_width*k_height; i++) printf("%d ", kernel_data[i]);
 
@@ -140,16 +142,12 @@ int main() {
     char *image_out = calloc(im_width*im_height*COLOR_CHANNEL_COUNT, sizeof(char));
     convolve(image_data, im_width, im_height, kernel_data, k_width, k_height, 0, im_height, image_out);
 
-    // send the result back!
-    //for(i=0; i<im_width*im_height*COLOR_CHANNEL_COUNT; i++) {
-    //    putchar_raw(image_out[i]);
-    //}
-    //fflush(stdout);
+    // send resulting image back!
     for(i=0; i<im_width*im_height*COLOR_CHANNEL_COUNT; i++) {
-        printf("%d\n", image_out[i]);
+        putchar_raw(image_out[i]);
     }
     fflush(stdout);
-
+    
     // indicate computation done
     pico_set_led(true);
 
