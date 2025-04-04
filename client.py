@@ -31,7 +31,6 @@ if __name__ == "__main__":
 
     # hardcode sharpen kernel for testing
     kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], dtype=np.int8)
-    print(kernel.astype(np.int8).tobytes())
 
     # look for ports
     ports = [tuple(p)[0] for p in list(serial.tools.list_ports.comports())]
@@ -58,7 +57,7 @@ if __name__ == "__main__":
         # send image in rgb rgb rgb rgb pixel by pixel
         ser.write(ima.flatten().tobytes())
 
-        print(ser.readline())
+        print('BOARD', ser.readline().decode(), end='')
 
         # tell the cluster we are about to send a kernel
         ser.write((COMMAND_TRANS_KSTART + '\n').encode('utf-8'))
@@ -68,10 +67,9 @@ if __name__ == "__main__":
         ser.write(f'{kernel.shape[0]}\n'.encode('utf-8')) # height
 
         # send kernel data
-        print('sending', (kernel.flatten()).tobytes())
         ser.write(kernel.flatten().astype(dtype=np.int8).tobytes())
 
-        print(ser.readline())
+        print('BOARD', ser.readline().decode(), end='')
 
         # now wait for response
         #while True:
@@ -82,21 +80,16 @@ if __name__ == "__main__":
         #    out[i] = int(ser.readline())
         #    print(ser.in_waiting, end=', ')
         out = ser.read(im.width*im.height*3)
-        print(out, ser.in_waiting)
+        print(f'Read {len(out)} image bytes from head node')
+        out = np.frombuffer(out, dtype=np.int8)
+        
+        f, ax = plt.subplots(2, 2)
 
-        time.sleep(1)
-        ser.flush()
-        time.sleep(1)
-        print(ser.in_waiting)
-        print('closing...', end='')
+        im_out = Image.fromarray(out.reshape((im.height, im.width, 3)), 'RGB')
+
+        ax[0][0].imshow(im)
+        ax[0][1].imshow(im_out)
+        ax[1][0].imshow(ImageChops.difference(im, im_out))
+        plt.show()
 
     print('closed')
-
-    f, ax = plt.subplots(2, 2)
-
-    im_out = Image.fromarray(out.reshape((im.height, im.width, 3)), 'RGB')
-
-    ax[0][0].imshow(im)
-    ax[0][1].imshow(im_out)
-    ax[1][0].imshow(ImageChops.difference(im, im_out))
-    plt.show()

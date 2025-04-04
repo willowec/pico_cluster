@@ -129,12 +129,8 @@ int main() {
     // finally, allocate and read the kernel
     int *kernel_data = malloc(sizeof(int) * k_width*k_height);
     for(i=0; i<k_width*k_height; i++) {
-        kernel_data[i] = (char)getchar();
-        if (kernel_data[i] > 127) kernel_data[i] -= 256; //cursed manual signed type cast, normal cast to char doesn't seem to work...
+        kernel_data[i] = (signed char)getchar();
     }
-
-
-    for(i=0; i<k_width*k_height; i++) printf("%d ", kernel_data[i]);
 
     printf("Loaded kernel of size %d, shape (%d %d %d). Took %lluus\n", k_width*k_height, k_width, k_height, 1, to_us_since_boot(get_absolute_time()) - start_time);
 
