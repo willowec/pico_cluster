@@ -38,6 +38,10 @@ More things work :)
 
 Time to figure out why the result image isn't zero-padded on the bottom edge:
 
-![Peace sign thru a sharpen filter](./bad_padding.png)\
+![Peace sign thru a sharpen filter](./bad_padding.png)
 
-(I was using im_width where I should have used im_height)
+(I was using im_width where I should have used im_height).
+Annoyingly, serial still regularly drops bytes when reading the output image but really what can you do? I guess have a system to request re-sends and stuff...
+
+Okay, I think I solved it by having head node wait for ACK from client before it stops re-sending the image? Not sure tho because its magically working first try rn. 
+Whatever.

@@ -138,15 +138,29 @@ int main() {
     char *image_out = calloc(im_width*im_height*COLOR_CHANNEL_COUNT, sizeof(char));
     convolve(image_data, im_width, im_height, kernel_data, k_width, k_height, 0, im_height, image_out);
 
-    // send resulting image back!
-    for(i=0; i<im_width*im_height*COLOR_CHANNEL_COUNT; i++) {
-        putchar_raw(image_out[i]);
+    // send result image but have a path for client to request a resend
+    while (1) {
+        // send image
+        pico_set_led(true);
+        for(i=0; i<im_width*im_height*COLOR_CHANNEL_COUNT; i++) {
+            putchar_raw(image_out[i]);
+        }
+        fflush(stdout);
+        
+        // check response
+        pico_set_led(false);
+        read_stdio(buf, 128);
+        if (strcmp("REPEAT", buf) == 0) {
+            continue; // try again
+        }
+        else if (strcmp("ACK", buf) == 0) {
+            break; // we got em
+        } else {
+            pico_set_led(true); // unrecognized command
+            return 1;
+        }
     }
-    fflush(stdout);
     
-    // indicate computation done
-    pico_set_led(true);
-
     /* now we have an image and a kernel. */
     /* we need to split the image up into four chunks and send the chunks along */
     /* with the kernel to the compute nodes. Over i2c. */

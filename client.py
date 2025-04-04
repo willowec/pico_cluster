@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 
 COMMAND_TRANS_IMSTART='TRANS_IMAGE'
 COMMAND_TRANS_KSTART='TRANS_KERNEL'
+COMMAND_TRANS_ACK='ACK'
+COMMAND_TRANS_REPEAT='REPEAT'
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -46,7 +48,8 @@ if __name__ == "__main__":
     print(f'Sending {args.imfile.name} to cluster at {port}')
 
     # connect to the PMI
-    with serial.serial_for_url(port, baudrate=115200, timeout=1, write_timeout=1) as ser:
+    with serial.serial_for_url(port, baudrate=115200, timeout=1, write_timeout=5) as ser:
+
         # tell cluster we are about to send an image
         ser.write((COMMAND_TRANS_IMSTART + '\n').encode('utf-8'))
 
@@ -79,8 +82,16 @@ if __name__ == "__main__":
         #for i in range(len(out)):
         #    out[i] = int(ser.readline())
         #    print(ser.in_waiting, end=', ')
-        out = ser.read(im.width*im.height*3)
-        print(f'Read {len(out)} image bytes from head node')
+        received = False
+        while not received:
+            out = ser.read(im.width*im.height*3)
+            print(f'Read {len(out)} image bytes from head node')
+            if len(out) < im.width * im.height * 3:
+                ser.write((COMMAND_TRANS_REPEAT + '\n').encode('utf-8'))
+            else:
+                received = True
+        
+        ser.write((COMMAND_TRANS_ACK + '\n').encode('utf-8'))
         out = np.frombuffer(out, dtype=np.int8)
         
         f, ax = plt.subplots(2, 2)
