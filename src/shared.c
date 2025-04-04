@@ -43,7 +43,7 @@ void convolve(char *im, int im_width, int im_height, int *kernel, int k_width, i
 
     /* bound the border */
     if (y_start < (k_height-1)/2) y_start = (k_height-1)/2;
-    if (y_end > im_width - (k_height-1)/2) y_end = im_width - (k_height-1)/2;
+    if (y_end > im_height - (k_height-1)/2) y_end = im_height - (k_height-1)/2;
 
     //for(idx=0; idx<im_width*im_height*COLOR_CHANNEL_COUNT; idx++) printf("%d: %d\n", idx, im[idx]);
     //printf("STARTING IMAGE\n\n\n\n\n");

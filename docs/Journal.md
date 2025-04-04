@@ -27,3 +27,17 @@ This is also being annoying tho - often fails to send all the bytes.
 
 Still, sometimes an image makes it back and we can imshow in the client.
 Unfortunately the result is always incorrect... something to work on tomorrow, its late
+
+## 4/3/2025
+
+Nothing works!! Nothing!!
+
+## 4/4/2025
+
+More things work :)
+
+Time to figure out why the result image isn't zero-padded on the bottom edge:
+
+![Peace sign thru a sharpen filter](./bad_padding.png)\
+
+(I was using im_width where I should have used im_height)
