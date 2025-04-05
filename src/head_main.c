@@ -9,7 +9,84 @@
 
 #include "shared.h"
 
+
+// TODO slave on head
+#include "pico/i2c_slave.h"
+
 #define LED_DELAY_MS    500
+
+
+// TODO slave on head
+
+#define SLAVE_STATE_NONE    0
+#define SLAVE_STATE_IMAGE_RD   1
+#define SLAVE_STATE_KERNEL_RD  2
+
+static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
+    uint8_t val;
+    static int i;
+    static int state = SLAVE_STATE_NONE;
+    static int im_width = 0;
+    static int im_height = 0;
+
+
+    switch (event) {
+    case I2C_SLAVE_RECEIVE:
+        val = i2c_read_byte_raw(i2c);
+        if (state == SLAVE_STATE_NONE) {
+            // set state based on command
+            if (val == I2C_TRANS_IMG) {
+                state = SLAVE_STATE_IMAGE_RD;
+                printf("state is reading image!\n");
+                im_width = 0;
+                im_height = 0;
+                i = 0;
+            }
+        }
+        else if (state == SLAVE_STATE_IMAGE_RD) {
+            printf("i: %d. val: %#x. w: %#x. h: %#x\n", i, val, im_width, im_height);
+            if (i < 4) {
+                im_width |= (val << (i*8));
+            }
+            else {
+                im_height |= (val << ((i-4)*8));
+            }
+            i ++;
+        }
+
+        
+        break;
+    case I2C_SLAVE_REQUEST:
+        i2c_write_byte_raw(i2c, state);
+        pico_set_led(false);
+        
+        break;
+    case I2C_SLAVE_FINISH: // master has signalled Stop / Restart
+        state = SLAVE_STATE_NONE;
+        printf("Resetting state. w: %d, h: %d\n", im_width, im_height);
+        break;
+    default:
+        break;
+    }
+}
+
+// TODO slave on head
+static void setup_i2c() {
+
+    // set up sda
+    gpio_init(10);
+    gpio_set_function(10, GPIO_FUNC_I2C);
+    gpio_pull_up(10);
+
+    // set up scl
+    gpio_init(11);
+    gpio_set_function(11, GPIO_FUNC_I2C);
+    gpio_pull_up(11);
+
+    i2c_init(i2c1, I2C_BAUDRATE);
+    // configure I2C0 for slave mode
+    i2c_slave_init(i2c1, COMPUTE_SLAVE_BASE_ADDRESS, &i2c_slave_handler);
+}
 
 
 // I2C reserves some addresses for special purposes. We exclude these from the scan.
@@ -64,6 +141,7 @@ void read_stdio(char *buf, int buflen)
 }
 
 
+
 int main() {
 	char buf[128];
     int i;
@@ -88,7 +166,7 @@ int main() {
     start_time = to_us_since_boot(get_absolute_time());
 
     /* get the image and kernel from the client over serial */
-
+#if 0
     // read from usb stdio waiting for image transmission start
     while(1) {
         read_stdio(buf, 128);
@@ -138,6 +216,16 @@ int main() {
     char *image_out = calloc(im_width*im_height*COLOR_CHANNEL_COUNT, sizeof(char));
     convolve(image_data, im_width, im_height, kernel_data, k_width, k_height, 0, im_height, image_out);
 
+    
+    /* now we have an image and a kernel. */
+    /* we need to split the image up into four chunks and send the chunks along */
+    /* with the kernel to the compute nodes. Over i2c. */
+
+    // could transmit to each node only the data it needs to know about, and then reassemble on head
+    // so each node gets a quarter of the data and the head keeps track of which node got which quarter
+    // and re-assembles it afterwards
+
+
     // send result image but have a path for client to request a resend
     while (1) {
         // send image
@@ -160,14 +248,48 @@ int main() {
             return 1;
         }
     }
+#endif
+    // TODO I2C TESTING
+    setup_i2c();
+
+    sleep_ms(2000);
+    scan_i2c_bus();
+
+    buf[0] = I2C_TRANS_IMG;
+
+    // split width and height integers for sending
+    im_width = 0xABCD;
+    im_height = 0xA;
+    buf[1] = im_width & 0xff;
+    buf[2] = (im_width >> 8) & 0xff;
+    buf[3] = (im_width >> 16) & 0xff;
+    buf[4] = (im_width >> 24) & 0xff;
+
+    buf[5] = im_height & 0xff;
+    buf[6] = (im_height >> 8) & 0xff;
+    buf[7] = (im_height >> 16) & 0xff;
+    buf[8] = (im_height >> 24) & 0xff;
+
+    printf("sending ");
+    for (i=0; i<9; i++) {
+        printf("%#x ", buf[i]);
+    }
+    putchar('\n');
+
+    if(i2c_write_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, buf, 9, true) < 9) {
+        printf("Failed to write to slave\n");
+        pico_set_led(true);
+    }
     
-    /* now we have an image and a kernel. */
-    /* we need to split the image up into four chunks and send the chunks along */
-    /* with the kernel to the compute nodes. Over i2c. */
-
-    // could transmit to each node only the data it needs to know about, and then reassemble on head
-    // so each node gets a quarter of the data and the head keeps track of which node got which quarter
-    // and re-assembles it afterwards
-
+    uint8_t response = 0;
+    while (response == 0) {
+        i = i2c_read_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, &response, 1, false);
+        if(i  < 1) {
+            printf("Failed to read from slave\n");
+            pico_set_led(true);
+        }
+        printf("Got response %d\n", response);
+        sleep_ms(1000);
+    }
     return 0;
 }

@@ -45,3 +45,5 @@ Annoyingly, serial still regularly drops bytes when reading the output image but
 
 Okay, I think I solved it by having head node wait for ACK from client before it stops re-sending the image? Not sure tho because its magically working first try rn. 
 Whatever.
+
+Either way, this means that next up is board to board comms! Hope this isn't too hard... (it's gonna be hard)

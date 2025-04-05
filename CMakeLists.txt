@@ -30,12 +30,12 @@ add_executable(compute_pico
 )
 
 
-target_link_libraries(head_pico pico_stdlib pico_multicore hardware_i2c)
+target_link_libraries(head_pico pico_stdlib pico_multicore pico_i2c_slave hardware_i2c)
 pico_enable_stdio_usb(head_pico 1)
 pico_enable_stdio_uart(head_pico 0)
 pico_add_extra_outputs(head_pico)
 
-target_link_libraries(compute_pico pico_stdlib pico_multicore i2c_slave)
+target_link_libraries(compute_pico pico_stdlib pico_multicore pico_i2c_slave hardware_i2c)
 pico_enable_stdio_usb(compute_pico 1)
 pico_enable_stdio_uart(compute_pico 0)
 pico_add_extra_outputs(compute_pico)

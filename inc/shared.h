@@ -1,6 +1,9 @@
 #define I2C_BAUDRATE   100000
 #define COMPUTE_SLAVE_BASE_ADDRESS 0x17
 
+#define I2C_TRANS_IMG       0x11
+#define I2C_TRANS_KERNEL    0x22
+
 /* led functions */
 void pico_set_led(bool led_on);
 int pico_led_init();

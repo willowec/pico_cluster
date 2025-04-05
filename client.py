@@ -94,6 +94,12 @@ if __name__ == "__main__":
         ser.write((COMMAND_TRANS_ACK + '\n').encode('utf-8'))
         out = np.frombuffer(out, dtype=np.int8)
         
+        while True:
+            print(ser.readline())
+
+
+        quit()
+
         f, ax = plt.subplots(2, 2)
 
         im_out = Image.fromarray(out.reshape((im.height, im.width, 3)), 'RGB')
