@@ -204,8 +204,8 @@ void core1_entry() {
     signed char *dummy_kernel = malloc(kw*kh);
     signed char *dummy_image = malloc(iw*ih*COLOR_CHANNEL_COUNT);
 
-    for(i=0; i<kw*kh; i++) dummy_kernel[i] = i;
-    for(i=0; i<iw*ih*COLOR_CHANNEL_COUNT; i++) dummy_image[i] = i;
+    for(i=0; i<kw*kh; i++) dummy_kernel[i] = 1;
+    for(i=0; i<iw*ih*COLOR_CHANNEL_COUNT; i++) dummy_image[i] = 1;
 
     buf[1] = iw & 0xff;
     buf[2] = (iw >> 8) & 0xff;
@@ -289,9 +289,9 @@ int main() {
 
             printf("[WORKER] Allocating kernel (%d), image (%d), and output image ('' '')\n", k_width*k_height, im_width*im_height*COLOR_CHANNEL_COUNT);
 
-            input_image = malloc(im_width*im_height*COLOR_CHANNEL_COUNT);
-            output_image = malloc(im_width*im_height*COLOR_CHANNEL_COUNT);
-            kernel = malloc(k_width*k_height);
+            input_image = malloc(im_width*im_height*COLOR_CHANNEL_COUNT * sizeof(unsigned char));
+            output_image = calloc(im_width*im_height*COLOR_CHANNEL_COUNT, sizeof(unsigned char));
+            kernel = malloc(k_width*k_height * sizeof(signed char));
 
             if (!input_image || !output_image || !kernel) {
                 printf("[WORKER] KERNEL AND IMAGE ALLOCATION FAILED\n");
@@ -307,10 +307,7 @@ int main() {
             // convolve on the data
             printf("[WORKER] convolving...\n");
 
-            //TODO tmp just copy input to output
-            for (i=0; i<im_width*im_height*COLOR_CHANNEL_COUNT; i++) {
-                output_image[i] = input_image[i];
-            }
+            convolve(input_image, im_width, im_height, kernel, k_width, k_height, 0, im_height, output_image);
 
             state = COMPUTE_STATE_IDLE;
             break;

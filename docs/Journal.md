@@ -81,5 +81,7 @@ I vote:
 (the vote is unanimous)
 
 I have now implemented something akin to this, can't be bothered to note any differences though. 
-What is key is that we can send and recv image data etc etc there is a protocol yadda yadda yay
+What is key is that we can send and recv image data etc etc there is a protocol yadda yadda yay.
+
+Next up, make it actually convolve and start sending info from head to compute
 				

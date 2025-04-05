@@ -64,13 +64,7 @@ void scan_i2c_bus()
 }
 
 
-char get_pixel_channel(int x, int y, int channel, char *image_data, int im_width, int im_height /* technically unused but it feels wrong to omit */)
-{
-    return image_data[y*im_width*COLOR_CHANNEL_COUNT + x*COLOR_CHANNEL_COUNT + channel];
-}
-
-
-void convolve(char *im, int im_width, int im_height, int *kernel, int k_width, int k_height, int y_start, int y_end, char *out_im)
+void convolve(char *im, int im_width, int im_height, signed char *kernel, int k_width, int k_height, int y_start, int y_end, char *out_im)
 {
     int c, x, y, kx, ky;
     int color, sum, idx;
@@ -94,11 +88,11 @@ void convolve(char *im, int im_width, int im_height, int *kernel, int k_width, i
                         /* sum all the parts touched by the kernel */
                         idx = ((y+ky)*im_width*COLOR_CHANNEL_COUNT)+(x*COLOR_CHANNEL_COUNT+c+kx*COLOR_CHANNEL_COUNT);
                         color = im[idx];
-                        //printf("idx=%d, color=%d, k=%d\n", idx, color, kernel[((ky+(k_height-1)/2)*k_height)+(kx+k_width/2)]);
+                        printf("idx=%d, color=%d, k=%d\n", idx, color, kernel[((ky+(k_height-1)/2)*k_height)+(kx+k_width/2)]);
                         sum += color * kernel[((ky+(k_height-1)/2)*k_height)+(kx+k_width/2)];
                     }
                 }
-                //printf("sum: %d\n", sum);
+                printf("sum: %d\n", sum);
 
                 if (sum < 0) sum = 0;
                 if (sum > 255) sum = 255;
