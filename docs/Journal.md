@@ -47,3 +47,11 @@ Okay, I think I solved it by having head node wait for ACK from client before it
 Whatever.
 
 Either way, this means that next up is board to board comms! Hope this isn't too hard... (it's gonna be hard)
+
+## 4/5/2025
+
+Did a ton of messing around with i2c master/slave on head node. 
+Turns out that the rpi pico SDK integrated the i2c_slave library around 2 years ago, so using that now.
+Finally figured out a scheme for communicating integers! 
+Now I am going to move this testing work to the compute node codebase and get full image transfers working.
+Just work off of the compute node alone send/rcv at first!

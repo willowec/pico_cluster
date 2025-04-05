@@ -9,6 +9,10 @@ void pico_set_led(bool led_on);
 int pico_led_init();
 void power_on_blink();
 
+/* i2c functions */
+void scan_i2c_bus();
+
+
 #define COLOR_CHANNEL_R 0
 #define COLOR_CHANNEL_G 1
 #define COLOR_CHANNEL_B 2
