@@ -1,8 +1,6 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.13...3.27)
 
 # initialize the SDK based on PICO_SDK_PATH
-# note: this must happen before project()
-set(PICO_SDK_PATH $ENV{PICO_SDK_PATH})
 include(pico_sdk_import.cmake)
 
 project(pico_cluster C CXX ASM)
@@ -11,9 +9,6 @@ set(CMAKE_CXX_STANDARD 17)
 
 # initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
-
-# get the i2c_slave library
-add_subdirectory(i2c_slave)
 
 include_directories("src/" "inc/")
 

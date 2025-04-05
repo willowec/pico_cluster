@@ -77,5 +77,9 @@ I vote:
 										run convolve in main loop
 										set state to COMPUTE_STATE_IDLE
 	wait for state to be COMPUTE_STATE_IDLE
-	
+
+(the vote is unanimous)
+
+I have now implemented something akin to this, can't be bothered to note any differences though. 
+What is key is that we can send and recv image data etc etc there is a protocol yadda yadda yay
 				

@@ -51,13 +51,22 @@ static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
                 k_height = 0;
                 i = 0;
 
-                printf("Prepped to read dimensions\n");
+                printf("[INT] Prepped to read dimensions\n");
             }
             else if (val == I2C_TRANS_KIM) {
                 // set up for reading kernel and image data
-                if (input_image != NULL)    free(input_image);
-                if (kernel != NULL)         free(kernel);
-                if (output_image != NULL)   free(output_image);
+                state = COMPUTE_STATE_DATA_RD;
+                i = 0;
+    
+                printf("[INT] Prepped to read image data\n");
+            }
+            else if (val == I2C_TRANS_RQST_IM) {
+                // set up for responding with the results
+                state = COMPUTE_STATE_TRANS_RES;
+                i = 0;
+
+                printf("[INT] Prepped to respond with image data\n");
+
             }
             break;
 
@@ -68,7 +77,21 @@ static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
             else if (i < 12)    k_width     |= (val << ((i-8)*8));
             else if (i < 16)    k_height    |= (val << ((i-12)*8));
 
-            printf("%d %x %x %x %x\n", i, im_width, im_height, k_width, k_height);
+            i++;
+            break;
+
+        case COMPUTE_STATE_DATA_RD:
+            // receive image data
+            if (i < k_width*k_height) {
+                kernel[i] = (signed char)val;
+            }
+            else if (i < k_width*k_height*im_width*im_height*COLOR_CHANNEL_COUNT) {
+                input_image[i - k_width*k_height] = (unsigned char)val;
+            }
+            else {
+                printf("[INT] Sent too much data! i=%d\n", i);
+            }
+
             i++;
             break;
 
@@ -77,6 +100,19 @@ static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
         }
         break;
     case I2C_SLAVE_REQUEST:
+        // we are sending the results!
+        if (state == COMPUTE_STATE_TRANS_RES) {
+            i2c_write_byte_raw(i2c, output_image[i]);
+            i++;
+
+            if (i == im_width*im_height*COLOR_CHANNEL_COUNT) {
+                printf("[INT] finished responding!!\n");
+                state = COMPUTE_STATE_IDLE;
+            }
+            break;
+        }
+
+        // normally just send the state
         i2c_write_byte_raw(i2c, state);
         
         break;
@@ -84,13 +120,13 @@ static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
         switch (state) {
         case COMPUTE_STATE_DIMS_RD:
             // tell main to start allocating
-            printf("Switching to state allocate\n");
+            printf("[INT] Switching to state allocate\n");
             state = COMPUTE_STATE_ALLOCATE;
             break;
 
         case COMPUTE_STATE_DATA_RD:
             // tell main to start allocating
-            printf("Switching to state convolve\n");
+            printf("[INT] Switching to state convolve\n");
             state = COMPUTE_STATE_CONVOLVE;
             break;
 
@@ -136,12 +172,11 @@ static void setup_i2c() {
 // TODO: core 1 serves as the fake head node
 void core1_entry() {
 
-    uint8_t buf[64];
+    uint8_t buf[128];
     uint8_t response;
     int ret;
     int i;
-
-
+    int iw, ih, kw, kh;
 
     // set up master i2c
     i2c_init(i2c0, I2C_BAUDRATE);
@@ -161,43 +196,77 @@ void core1_entry() {
     buf[0] = I2C_TRANS_KIM_DIMS;
 
     // split width and height integers for sending
-    im_width = 128;
-    im_height = 128;
-    k_width = 5;
-    k_height = 5;
+    iw = 5;
+    ih = 5;
+    kw = 3;
+    kh = 3;
 
-    buf[1] = im_width & 0xff;
-    buf[2] = (im_width >> 8) & 0xff;
-    buf[3] = (im_width >> 16) & 0xff;
-    buf[4] = (im_width >> 24) & 0xff;
+    signed char *dummy_kernel = malloc(kw*kh);
+    signed char *dummy_image = malloc(iw*ih*COLOR_CHANNEL_COUNT);
 
-    buf[5] = im_height & 0xff;
-    buf[6] = (im_height >> 8) & 0xff;
-    buf[7] = (im_height >> 16) & 0xff;
-    buf[8] = (im_height >> 24) & 0xff;
+    for(i=0; i<kw*kh; i++) dummy_kernel[i] = i;
+    for(i=0; i<iw*ih*COLOR_CHANNEL_COUNT; i++) dummy_image[i] = i;
 
-    buf[9] = k_width & 0xff;
-    buf[10] = (k_width >> 8) & 0xff;
-    buf[11] = (k_width >> 16) & 0xff;
-    buf[12] = (k_width >> 24) & 0xff;
+    buf[1] = iw & 0xff;
+    buf[2] = (iw >> 8) & 0xff;
+    buf[3] = (iw >> 16) & 0xff;
+    buf[4] = (iw >> 24) & 0xff;
 
-    buf[13] = k_height & 0xff;
-    buf[14] = (k_height >> 8) & 0xff;
-    buf[15] = (k_height >> 16) & 0xff;
-    buf[16] = (k_height >> 24) & 0xff;
+    buf[5] = ih & 0xff;
+    buf[6] = (ih >> 8) & 0xff;
+    buf[7] = (ih >> 16) & 0xff;
+    buf[8] = (ih >> 24) & 0xff;
 
+    buf[9] = kw & 0xff;
+    buf[10] = (kw >> 8) & 0xff;
+    buf[11] = (kw >> 16) & 0xff;
+    buf[12] = (kw >> 24) & 0xff;
 
-    printf("Sending data...\n");
+    buf[13] = kh & 0xff;
+    buf[14] = (kh >> 8) & 0xff;
+    buf[15] = (kh >> 16) & 0xff;
+    buf[16] = (kh >> 24) & 0xff;
+
+    printf("Sending dimensions...\n");
     ret = i2c_write_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, buf, 17, false);
-    printf("Transmitted %d bytes\n", ret);
+
+    // wait for complete
+    response = COMPUTE_STATE_BAD;
     while (response != COMPUTE_STATE_IDLE) {
+        sleep_ms(100);
         ret = i2c_read_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, &response, 1, false);
     }
     printf("Allocating must be complete\n");
     
+
+    printf("Sending kim data...\n");
+    buf[0] = I2C_TRANS_KIM;
+    ret = i2c_write_burst_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, buf, 1);
+    ret = i2c_write_burst_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, dummy_kernel, kw*kh);
+    ret = i2c_write_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, dummy_image, iw*ih*COLOR_CHANNEL_COUNT, false);
+
+    // wait for complete
+    response = COMPUTE_STATE_BAD;
+    while (response != COMPUTE_STATE_IDLE) {
+        sleep_ms(100);
+        ret = i2c_read_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, &response, 1, false);
+    }
+    printf("Convolve must be complete\n");
+
+    printf("Requesting results...\n");
+    buf[0] = I2C_TRANS_RQST_IM;
+    ret = i2c_write_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, buf, 1, true);
+    ret = i2c_read_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, buf, iw*ih*COLOR_CHANNEL_COUNT, false);
+    printf("Received %d results!\n", ret);
+    for(i=0; i<iw*ih*COLOR_CHANNEL_COUNT; i++) {
+        printf("%d: in=%#x out=%#x\n", i, dummy_image[i], buf[i]);
+    }
+
 }
 
 int main() {
+    int i;
+
     // Enable UART so we can print status output
     stdio_init_all();
 
@@ -218,20 +287,30 @@ int main() {
             if (output_image != NULL)   free(output_image);
             if (kernel != NULL)         free(kernel);
 
-            printf("Allocating kernel (%d), image (%d), and output image ('' '')\n", k_width*k_height, im_width*im_height*COLOR_CHANNEL_COUNT);
+            printf("[WORKER] Allocating kernel (%d), image (%d), and output image ('' '')\n", k_width*k_height, im_width*im_height*COLOR_CHANNEL_COUNT);
 
             input_image = malloc(im_width*im_height*COLOR_CHANNEL_COUNT);
             output_image = malloc(im_width*im_height*COLOR_CHANNEL_COUNT);
             kernel = malloc(k_width*k_height);
 
-            printf("Success\n");
-            state = COMPUTE_STATE_IDLE;
+            if (!input_image || !output_image || !kernel) {
+                printf("[WORKER] KERNEL AND IMAGE ALLOCATION FAILED\n");
 
+                state = COMPUTE_STATE_BAD;
+                break;
+            }
+
+            state = COMPUTE_STATE_IDLE;
             break;
 
         case COMPUTE_STATE_CONVOLVE:
             // convolve on the data
-            printf("convolving...\n");
+            printf("[WORKER] convolving...\n");
+
+            //TODO tmp just copy input to output
+            for (i=0; i<im_width*im_height*COLOR_CHANNEL_COUNT; i++) {
+                output_image[i] = input_image[i];
+            }
 
             state = COMPUTE_STATE_IDLE;
             break;
