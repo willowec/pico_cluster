@@ -55,3 +55,27 @@ Turns out that the rpi pico SDK integrated the i2c_slave library around 2 years 
 Finally figured out a scheme for communicating integers! 
 Now I am going to move this testing work to the compute node codebase and get full image transfers working.
 Just work off of the compute node alone send/rcv at first!
+
+Okay, so communicating might be a bit hard.
+Allocating arrays in the interrupt handler seems to not be allowed, and running the computation would obviously take too long.
+Therefore, I2C needs a different protocol.
+I vote:
+
+	// commands
+
+	// procedure (ordered)
+	head								compute
+	send TRANS_KIM_DIMS					set state to COMPUTE_STATE_DIMS_RD
+	send 16 bytes (4 ints)				recv k dims and im dims
+										set state to COMPUTE_STATE_WORKING
+										allocate im and k in main loop
+										set state to COMPUTE_STATE_IDLE
+	wait for state to be COMPUTE_STATE_IDLE
+	send TRANS_KIM						set state to COMPUTE_STATE_DATA_RD
+										recv image and kernel data
+										set state to COMPUTE_STATE_WORKING
+										run convolve in main loop
+										set state to COMPUTE_STATE_IDLE
+	wait for state to be COMPUTE_STATE_IDLE
+	
+				
