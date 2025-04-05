@@ -63,6 +63,67 @@ void scan_i2c_bus()
     printf("Done.\n");
 }
 
+void i2c_send_kim_dims(int iw, int ih, int kw, int kh) {
+    uint8_t buf[17];
+    int ret;
+
+    buf[0] = I2C_TRANS_KIM_DIMS;
+
+    buf[1] = iw & 0xff;
+    buf[2] = (iw >> 8) & 0xff;
+    buf[3] = (iw >> 16) & 0xff;
+    buf[4] = (iw >> 24) & 0xff;
+
+    buf[5] = ih & 0xff;
+    buf[6] = (ih >> 8) & 0xff;
+    buf[7] = (ih >> 16) & 0xff;
+    buf[8] = (ih >> 24) & 0xff;
+
+    buf[9] = kw & 0xff;
+    buf[10] = (kw >> 8) & 0xff;
+    buf[11] = (kw >> 16) & 0xff;
+    buf[12] = (kw >> 24) & 0xff;
+
+    buf[13] = kh & 0xff;
+    buf[14] = (kh >> 8) & 0xff;
+    buf[15] = (kh >> 16) & 0xff;
+    buf[16] = (kh >> 24) & 0xff;
+
+    ret = i2c_write_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, buf, 17, false);
+
+    // wait for complete
+    buf[0] = COMPUTE_STATE_BAD;
+    while (buf[0] != COMPUTE_STATE_IDLE) {
+        sleep_ms(100);
+        ret = i2c_read_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, buf, 1, false);
+    }
+}
+
+void i2c_send_kim_data(signed char *k, int kw, int kh, unsigned char *im, int iw, int ih) {
+    char buf = I2C_TRANS_KIM;
+    int ret;
+
+    ret = i2c_write_burst_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, &buf, 1);
+    ret = i2c_write_burst_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, k, kw*kh);
+    ret = i2c_write_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, im, iw*ih*COLOR_CHANNEL_COUNT, false);
+
+    // wait for complete
+    buf = COMPUTE_STATE_BAD;
+    while (buf != COMPUTE_STATE_IDLE) {
+        sleep_ms(100);
+        ret = i2c_read_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, &buf, 1, false);
+    }
+}
+
+void i2c_request_im_data(signed char *out, int iw, int ih) {
+    char buf = I2C_TRANS_RQST_IM;
+    int ret;
+
+    ret = i2c_write_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, &buf, 1, true);
+    ret = i2c_read_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, out, iw*ih*COLOR_CHANNEL_COUNT, false);
+
+}
+
 
 void convolve(char *im, int im_width, int im_height, signed char *kernel, int k_width, int k_height, int y_start, int y_end, char *out_im)
 {

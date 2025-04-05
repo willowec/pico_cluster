@@ -5,6 +5,15 @@
 #define I2C_TRANS_KIM       0xf2    /* begin transmitting kernel and image data */
 #define I2C_TRANS_RQST_IM   0xf3    /* request output image from compute node */
 
+/* send kernel and image dimensions, wait for confirmation of allocation complete */
+void i2c_send_kim_dims(int iw, int ih, int kw, int kh);
+
+/* send kernel and image data, wait for confirmation of convolution complete */
+void i2c_send_kim_data(signed char *k, int kw, int kh, unsigned char *im, int iw, int ih);
+
+/* get all output image data */
+void i2c_request_im_data(signed char *out, int iw, int ih);
+
 #define COMPUTE_STATE_BAD       -1
 #define COMPUTE_STATE_IDLE      0
 #define COMPUTE_STATE_DIMS_RD   1

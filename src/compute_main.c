@@ -193,8 +193,6 @@ void core1_entry() {
     // set up slave i2c
     setup_i2c();
 
-    buf[0] = I2C_TRANS_KIM_DIMS;
-
     // split width and height integers for sending
     iw = 5;
     ih = 5;
@@ -207,56 +205,18 @@ void core1_entry() {
     for(i=0; i<kw*kh; i++) dummy_kernel[i] = 1;
     for(i=0; i<iw*ih*COLOR_CHANNEL_COUNT; i++) dummy_image[i] = 1;
 
-    buf[1] = iw & 0xff;
-    buf[2] = (iw >> 8) & 0xff;
-    buf[3] = (iw >> 16) & 0xff;
-    buf[4] = (iw >> 24) & 0xff;
-
-    buf[5] = ih & 0xff;
-    buf[6] = (ih >> 8) & 0xff;
-    buf[7] = (ih >> 16) & 0xff;
-    buf[8] = (ih >> 24) & 0xff;
-
-    buf[9] = kw & 0xff;
-    buf[10] = (kw >> 8) & 0xff;
-    buf[11] = (kw >> 16) & 0xff;
-    buf[12] = (kw >> 24) & 0xff;
-
-    buf[13] = kh & 0xff;
-    buf[14] = (kh >> 8) & 0xff;
-    buf[15] = (kh >> 16) & 0xff;
-    buf[16] = (kh >> 24) & 0xff;
-
     printf("Sending dimensions...\n");
-    ret = i2c_write_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, buf, 17, false);
-
-    // wait for complete
-    response = COMPUTE_STATE_BAD;
-    while (response != COMPUTE_STATE_IDLE) {
-        sleep_ms(100);
-        ret = i2c_read_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, &response, 1, false);
-    }
+    i2c_send_kim_dims(iw, ih, kw, kh);
     printf("Allocating must be complete\n");
-    
+
 
     printf("Sending kim data...\n");
-    buf[0] = I2C_TRANS_KIM;
-    ret = i2c_write_burst_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, buf, 1);
-    ret = i2c_write_burst_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, dummy_kernel, kw*kh);
-    ret = i2c_write_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, dummy_image, iw*ih*COLOR_CHANNEL_COUNT, false);
-
-    // wait for complete
-    response = COMPUTE_STATE_BAD;
-    while (response != COMPUTE_STATE_IDLE) {
-        sleep_ms(100);
-        ret = i2c_read_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, &response, 1, false);
-    }
+    i2c_send_kim_data(dummy_kernel, kw, kh, dummy_image, iw, ih);
     printf("Convolve must be complete\n");
 
-    printf("Requesting results...\n");
-    buf[0] = I2C_TRANS_RQST_IM;
-    ret = i2c_write_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, buf, 1, true);
-    ret = i2c_read_blocking(i2c0, COMPUTE_SLAVE_BASE_ADDRESS, buf, iw*ih*COLOR_CHANNEL_COUNT, false);
+
+    printf("Requesting results...\n");    
+    i2c_request_im_data(buf, iw, ih);
     printf("Received %d results!\n", ret);
     for(i=0; i<iw*ih*COLOR_CHANNEL_COUNT; i++) {
         printf("%d: in=%#x out=%#x\n", i, dummy_image[i], buf[i]);
