@@ -30,7 +30,7 @@ void read_stdio(char *buf, int buflen)
 int main() {
 	char buf[128];
     int i, j, ret;
-    int im_width, im_height, k_width, k_height, im_size, split, n_procs, sum, rows;
+    int im_width, im_height, k_width, k_height, im_size, split, n_procs, color, rows;
     unsigned long long start_time;
 
     // Enable UART so we can print status output
@@ -122,13 +122,12 @@ int main() {
             // clamp bounds
             if (i == 0) {
                 im_start_idxs[i] = 0;
-                im_row_counts[i] -= k_height/2;
             }
             if (i == n_procs-1) {
-                im_row_counts[i] += k_height/2;
+                im_row_counts[i] += k_height-1;
             }
 
-            printf("sending %d: rows=%d, start=%d, bytes=%d\n", i, im_row_counts[i], im_start_idxs[i], im_row_counts[i] * im_width * COLOR_CHANNEL_COUNT);
+            printf("sending %d: start_row=%d, rows=%d, start=%d, bytes=%d\n", i, im_start_idxs[i]/(im_width*COLOR_CHANNEL_COUNT), im_row_counts[i], im_start_idxs[i], im_row_counts[i] * im_width * COLOR_CHANNEL_COUNT);
         }
 
         // send image dimensions
@@ -153,25 +152,30 @@ int main() {
         }
         printf("all boards convolved!\n");
 
-        // get back the data! 
+        // get back the data! Reverse order to ensure overwrites are properly applied
         char *image_out = calloc(im_size, sizeof(char));
-        for (i=0; i<n_procs; i++) {
+        for (i=n_procs-1; i>=0; i--) {
             // TODO TODO only take back the non-padded parts
-            im_start_idxs[i] += (k_height-1) * im_width*COLOR_CHANNEL_COUNT;
-            im_row_counts[i] -= (k_height-1);
-            if (i == 0) {
-                im_start_idxs[i] = 0;
-                im_row_counts[i] += (k_height-1);
-            }
+            //im_start_idxs[i] += (k_height/2) * im_width*COLOR_CHANNEL_COUNT;
 
-            printf("receiving %d: rows=%d, start=%d, bytes=%d\n", i, im_row_counts[i], im_start_idxs[i], im_row_counts[i] * im_width * COLOR_CHANNEL_COUNT);
+            // if (i > 0) {
+            //     im_start_idxs[i] += (k_height/2) * im_width*COLOR_CHANNEL_COUNT;
+            // }
+            im_row_counts[i] -= (k_height/2);
+            if (i == n_procs-1) im_row_counts[i] -= (k_height/2);
 
+            printf("receiving %d: start_row=%d, rows=%d, start=%d, bytes=%d\n", i, im_start_idxs[i]/(im_width*COLOR_CHANNEL_COUNT), im_row_counts[i], im_start_idxs[i], im_row_counts[i] * im_width * COLOR_CHANNEL_COUNT);
+
+            // temporarily save results into original image array
+            // TODO copy into niput array temporarily then move?
             ret = i2c_request_im_data(SLAVE_BASE_ADDRESS+i, image_out+im_start_idxs[i], im_width, im_row_counts[i]);
 
             // TODO tmp overwrite
-            for(j=0; j<im_row_counts[i]*im_width*COLOR_CHANNEL_COUNT; j++) {
-                image_out[im_start_idxs[i]+j] = 255 - (255/(n_procs+1))*i;
-            }
+            // for(j=0; j<im_row_counts[i]*im_width*COLOR_CHANNEL_COUNT; j++) {
+            //     color = 255 - (255/(n_procs+1))*i;
+            //     if (image_out[im_start_idxs[i]+j] != 0) color/=2;
+            //     image_out[im_start_idxs[i]+j] = color;
+            // }
         }
         printf("all data collected.\n");
 

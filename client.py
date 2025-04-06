@@ -99,8 +99,14 @@ if __name__ == "__main__":
         im_out = Image.fromarray(out.reshape((im.height, im.width, 3)), 'RGB')
 
         ax[0][0].imshow(im)
+        ax[0][0].set_xticks(np.arange(im.width))
+        ax[0][0].set_yticks(np.arange(im.height))
         ax[0][1].imshow(im_out)
+        ax[0][1].set_xticks(np.arange(im.width))
+        ax[0][1].set_yticks(np.arange(im.height))
         ax[1][0].imshow(ImageChops.difference(im, im_out))
+        ax[1][0].set_xticks(np.arange(im.width))
+        ax[1][0].set_yticks(np.arange(im.height))
         plt.show()
 
     print('closed')

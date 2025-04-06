@@ -105,4 +105,8 @@ So something might be going on with the indexing? but then again, probably not! 
 
 These indies are perfect, so what really gives?
 
-Well, are they perfect? Shouldn't I see everything except the first entry shifted down by one row? Huh, yeah I think I should
+Well, are they perfect? Shouldn't I see everything except the first entry shifted down by one row? Huh, yeah I think I should.
+
+(time marches on)
+
+So, all that indexing stuff? Difficult, but also just because I'm stupid. Solution was just to read back the same number of rows at the same start indices as we send in data, but backwards so that they overwrite properly
