@@ -30,7 +30,7 @@ void read_stdio(char *buf, int buflen)
 int main() {
 	char buf[128];
     int i, j, ret;
-    int im_width, im_height, k_width, k_height, im_size, split, n_procs, start, rows;
+    int im_width, im_height, k_width, k_height, im_size, split, n_procs, sum, rows;
     unsigned long long start_time;
 
     // Enable UART so we can print status output
@@ -109,18 +109,31 @@ int main() {
         /* we need to split the image up into four chunks and send the chunks along */
         /* with the kernel to the compute nodes. Over i2c. */
 
+        // first, prep splits
+        int *im_start_idxs = malloc(n_procs * sizeof(int));
+        int *im_row_counts = malloc(n_procs * sizeof(int));
 
-        // send image dimensions
         split = (im_size / n_procs) - (im_size / n_procs) % (im_width * COLOR_CHANNEL_COUNT);
         for (i=0; i<n_procs; i++) {
-            // set starts and ends
-            start = split * i;
-            rows = split / (im_width * COLOR_CHANNEL_COUNT);
-            if (i == n_procs-1) rows = im_height - rows * (n_procs-1);
+            // chunks should overlap by kernel size
+            im_start_idxs[i] = split * i - ((k_height/2) * im_width*COLOR_CHANNEL_COUNT);
+            im_row_counts[i] = (split / (im_width * COLOR_CHANNEL_COUNT)) + (k_height-1);
 
-            printf("%d: start=%d, rows=%d, bytes: %d\n", i, start, rows, rows*im_width*COLOR_CHANNEL_COUNT);
+            // clamp bounds
+            if (i == 0) {
+                im_start_idxs[i] = 0;
+                im_row_counts[i] -= k_height/2;
+            }
+            if (i == n_procs-1) {
+                im_row_counts[i] += k_height/2;
+            }
 
-            i2c_send_kim_dims(SLAVE_BASE_ADDRESS+i, im_width, rows, k_width, k_height);
+            printf("sending %d: rows=%d, start=%d, bytes=%d\n", i, im_row_counts[i], im_start_idxs[i], im_row_counts[i] * im_width * COLOR_CHANNEL_COUNT);
+        }
+
+        // send image dimensions
+        for (i=0; i<n_procs; i++) {
+            i2c_send_kim_dims(SLAVE_BASE_ADDRESS+i, im_width, im_row_counts[i], k_width, k_height);
         }
 
         // wait for data to be allocated
@@ -131,7 +144,7 @@ int main() {
 
         // now transmit image data
         for (i=0; i<n_procs; i++) {
-            i2c_send_kim_data(SLAVE_BASE_ADDRESS+i, kernel_data, k_width, k_height, image_data, im_width, im_height);
+            i2c_send_kim_data(SLAVE_BASE_ADDRESS+i, kernel_data, k_width, k_height, image_data+im_start_idxs[i], im_width, im_row_counts[i]); 
         }
 
         // and wait for the convolutions to finish :)
@@ -140,37 +153,27 @@ int main() {
         }
         printf("all boards convolved!\n");
 
-        // get back the data!
+        // get back the data! 
         char *image_out = calloc(im_size, sizeof(char));
         for (i=0; i<n_procs; i++) {
-            // set starts and ends (should be same as first loop) (yes I know this i sbad coding practice)
-            start = split * i;
-            rows = split / (im_width * COLOR_CHANNEL_COUNT);
-            if (i == n_procs-1) rows = im_height - rows * (n_procs-1);
-
-            ret = i2c_request_im_data(SLAVE_BASE_ADDRESS+i, image_out+start, im_width, rows);
-            printf("ret: %d\n", ret);
-
-            for(j=0; j<rows*im_width*COLOR_CHANNEL_COUNT; j++) {
-                printf("%d: %x\n", j+start, image_out[j+start]);
+            // TODO TODO only take back the non-padded parts
+            im_start_idxs[i] += (k_height-1) * im_width*COLOR_CHANNEL_COUNT;
+            im_row_counts[i] -= (k_height-1);
+            if (i == 0) {
+                im_start_idxs[i] = 0;
+                im_row_counts[i] += (k_height-1);
             }
-            putchar('\n');
+
+            printf("receiving %d: rows=%d, start=%d, bytes=%d\n", i, im_row_counts[i], im_start_idxs[i], im_row_counts[i] * im_width * COLOR_CHANNEL_COUNT);
+
+            ret = i2c_request_im_data(SLAVE_BASE_ADDRESS+i, image_out+im_start_idxs[i], im_width, im_row_counts[i]);
+
+            // TODO tmp overwrite
+            for(j=0; j<im_row_counts[i]*im_width*COLOR_CHANNEL_COUNT; j++) {
+                image_out[im_start_idxs[i]+j] = 255 - (255/(n_procs+1))*i;
+            }
         }
         printf("all data collected.\n");
-
-
-        //printf("sending image dims...\n");
-        //i2c_send_kim_dims(im_width, im_height, k_width, k_height);
-
-        //printf("sending image data...\n");
-        //i2c_send_kim_data(kernel_data, k_width, k_height, image_data, im_width, im_height);
-
-        //printf("requesting image results...\n");
-        //i2c_request_im_data(image_out, im_width, im_height);
-
-        // could transmit to each node only the data it needs to know about, and then reassemble on head
-        // so each node gets a quarter of the data and the head keeps track of which node got which quarter
-        // and re-assembles it afterwards
 
 
         printf("ENDDBG\n");
@@ -196,5 +199,13 @@ int main() {
                 return 1;
             }
         }
+
+        // cleanup
+        free(image_data);
+        free(kernel_data);
+        free(image_out);
+        free(im_start_idxs);
+        free(im_row_counts);
+
     }
 }

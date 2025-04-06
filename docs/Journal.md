@@ -92,3 +92,17 @@ Okay, having the head node control one compute node was trivial as *beep*! Let's
 So, after many hours and getting more tired, here's where I'm leaving this:
 
 ![A screenshot of the peace.png image being badly broadcast](./bad_parallel_nproc2.png)
+
+## 4/6/2025
+
+The finish line is on t he horizon. I've got things *mostly* working, just having trouble with the reassembling of the output image at the end.
+
+![A screenshot of the peace.png image having some black rows in the output](./overlap_problems.png)
+
+So something might be going on with the indexing? but then again, probably not! Look at what the output is for colors based solely on the indices and not the results: 
+
+![A screenshot of the peace.png image colored by process](./overlap_problems_indices.png)
+
+These indies are perfect, so what really gives?
+
+Well, are they perfect? Shouldn't I see everything except the first entry shifted down by one row? Huh, yeah I think I should

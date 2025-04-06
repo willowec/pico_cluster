@@ -21,6 +21,7 @@ COMMAND_TRANS_REPEAT='REPEAT'
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('imfile', type=Path, help='the image file to send to the cluster')
+    parser.add_argument('-n', '--n_procs', type=int, default=4, choices=[1, 2, 4], help='number of picos to use')
     parser.add_argument('-p', '--port', type=str, help='com port to go to')
 
     args = parser.parse_args()
@@ -71,10 +72,8 @@ if __name__ == "__main__":
         # send kernel data
         ser.write(kernel.flatten().astype(dtype=np.int8).tobytes())
         print('BOARD', ser.readline().decode(), end='')
-
-        # send n_procs
-        n_procs = 2
-        ser.write(f'{n_procs}\n'.encode('utf-8'))
+        
+        ser.write(f'{args.n_procs}\n'.encode('utf-8'))
         print('BOARD', ser.readline().decode(), end='')
 
         line = ser.readline().decode()
