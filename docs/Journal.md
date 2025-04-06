@@ -88,3 +88,7 @@ Next up, make it actually convolve and start sending info from head to compute
 (by the way, right now the comms functions send and wait for confirmation at once. This wont work once we start parallelizing)
 
 Okay, having the head node control one compute node was trivial as *beep*! Let's go! (censoring the language because this is technically academic work but yayyyyy)
+
+So, after many hours and getting more tired, here's where I'm leaving this:
+
+![A screenshot of the peace.png image being badly broadcast](./bad_parallel_nproc2.png)

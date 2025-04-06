@@ -25,7 +25,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-
     # open image and ensure always RGB
     im = Image.open(args.imfile)
     im = im.convert(mode='RGB')
@@ -48,7 +47,7 @@ if __name__ == "__main__":
     print(f'Sending {args.imfile.name} to cluster at {port}')
 
     # connect to the PMI
-    with serial.serial_for_url(port, baudrate=115200, timeout=1, write_timeout=5) as ser:
+    with serial.serial_for_url(port, baudrate=115200, timeout=0.5, write_timeout=0.5) as ser:
 
         # tell cluster we are about to send an image
         ser.write((COMMAND_TRANS_IMSTART + '\n').encode('utf-8'))
@@ -71,11 +70,17 @@ if __name__ == "__main__":
 
         # send kernel data
         ser.write(kernel.flatten().astype(dtype=np.int8).tobytes())
+        print('BOARD', ser.readline().decode(), end='')
 
+        # send n_procs
+        n_procs = 2
+        ser.write(f'{n_procs}\n'.encode('utf-8'))
         print('BOARD', ser.readline().decode(), end='')
-        print('BOARD', ser.readline().decode(), end='')
-        print('BOARD', ser.readline().decode(), end='')
-        print('BOARD', ser.readline().decode(), end='')
+
+        line = ser.readline().decode()
+        while "ENDDBG" not in line:
+            print('BOARD', line, end='')
+            line = ser.readline().decode()
 
         received = False
         while not received:

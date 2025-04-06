@@ -31,7 +31,6 @@ int k_height;
 static volatile int state = COMPUTE_STATE_IDLE;
 
 
-
 static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
     uint8_t val;
     static int i;
@@ -109,11 +108,11 @@ static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
                 printf("[INT] finished responding!!\n");
                 state = COMPUTE_STATE_IDLE;
             }
-            break;
+        } 
+        else {
+            // normally just send the state
+            i2c_write_byte_raw(i2c, state);
         }
-
-        // normally just send the state
-        i2c_write_byte_raw(i2c, state);
         
         break;
     case I2C_SLAVE_FINISH: // master has signalled Stop / Restart
@@ -129,6 +128,11 @@ static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
             printf("[INT] Switching to state convolve\n");
             state = COMPUTE_STATE_CONVOLVE;
             break;
+
+        // TODO: this breaks comms
+        // case COMPUTE_STATE_TRANS_RES:
+        //     state = COMPUTE_STATE_IDLE;
+        //     break;
 
         default:
             break;
@@ -150,7 +154,7 @@ static void setup_i2c() {
     gpio_pull_up(ADDR_CONFIG1_PIN);
 
     // read GPIO for address
-    addr = COMPUTE_SLAVE_BASE_ADDRESS + 2 * gpio_get(ADDR_CONFIG0_PIN) + gpio_get(ADDR_CONFIG1_PIN);
+    addr = SLAVE_BASE_ADDRESS + 2 * gpio_get(ADDR_CONFIG0_PIN) + gpio_get(ADDR_CONFIG1_PIN);
     printf("addr: %x\n", addr);
 
     // set up sda
@@ -202,22 +206,22 @@ void core1_entry() {
     for(i=0; i<kw*kh; i++) dummy_kernel[i] = 1;
     for(i=0; i<iw*ih*COLOR_CHANNEL_COUNT; i++) dummy_image[i] = 1;
 
-    printf("Sending dimensions...\n");
-    i2c_send_kim_dims(iw, ih, kw, kh);
-    printf("Allocating must be complete\n");
+    // printf("Sending dimensions...\n");
+    // i2c_send_kim_dims(iw, ih, kw, kh);
+    // printf("Allocating must be complete\n");
 
 
-    printf("Sending kim data...\n");
-    i2c_send_kim_data(dummy_kernel, kw, kh, dummy_image, iw, ih);
-    printf("Convolve must be complete\n");
+    // printf("Sending kim data...\n");
+    // i2c_send_kim_data(dummy_kernel, kw, kh, dummy_image, iw, ih);
+    // printf("Convolve must be complete\n");
 
 
-    printf("Requesting results...\n");    
-    i2c_request_im_data(buf, iw, ih);
-    printf("Received %d results!\n", ret);
-    for(i=0; i<iw*ih*COLOR_CHANNEL_COUNT; i++) {
-        printf("%d: in=%#x out=%#x\n", i, dummy_image[i], buf[i]);
-    }
+    // printf("Requesting results...\n");    
+    // i2c_request_im_data(buf, iw, ih);
+    // printf("Received %d results!\n", ret);
+    // for(i=0; i<iw*ih*COLOR_CHANNEL_COUNT; i++) {
+    //     printf("%d: in=%#x out=%#x\n", i, dummy_image[i], buf[i]);
+    // }
 
 }
 

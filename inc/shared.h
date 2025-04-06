@@ -1,18 +1,20 @@
 #define I2C_BAUDRATE   100000
-#define COMPUTE_SLAVE_BASE_ADDRESS 0x17
+#define SLAVE_BASE_ADDRESS 0x17
 
 #define I2C_TRANS_KIM_DIMS  0xf0    /* begin transmitting kernel and image dimensions (4 ints )*/
 #define I2C_TRANS_KIM       0xf2    /* begin transmitting kernel and image data */
 #define I2C_TRANS_RQST_IM   0xf3    /* request output image from compute node */
 
 /* send kernel and image dimensions, wait for confirmation of allocation complete */
-void i2c_send_kim_dims(int iw, int ih, int kw, int kh);
+void i2c_send_kim_dims(uint8_t addr, int iw, int ih, int kw, int kh);
+void i2c_wait_kim_dims(uint8_t addr);
 
 /* send kernel and image data, wait for confirmation of convolution complete */
-void i2c_send_kim_data(signed char *k, int kw, int kh, unsigned char *im, int iw, int ih);
+void i2c_send_kim_data(uint8_t addr, signed char *k, int kw, int kh, unsigned char *im, int iw, int ih);
+void i2c_wait_kim_data(uint8_t addr);
 
 /* get all output image data */
-void i2c_request_im_data(signed char *out, int iw, int ih);
+int i2c_request_im_data(uint8_t addr, unsigned char *out, int iw, int ih);
 
 #define COMPUTE_STATE_BAD       -1
 #define COMPUTE_STATE_IDLE      0

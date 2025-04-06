@@ -29,8 +29,8 @@ void read_stdio(char *buf, int buflen)
 
 int main() {
 	char buf[128];
-    int i;
-    int im_width, im_height, k_width, k_height;
+    int i, j, ret;
+    int im_width, im_height, k_width, k_height, im_size, split, n_procs, start, rows;
     unsigned long long start_time;
 
     // Enable UART so we can print status output
@@ -48,97 +48,153 @@ int main() {
 
     sleep_ms(1000);
 
-    start_time = to_us_since_boot(get_absolute_time());
-
-    /* get the image and kernel from the client over serial */
-    // read from usb stdio waiting for image transmission start
-    while(1) {
-        read_stdio(buf, 128);
-        if (strcmp("TRANS_IMAGE", buf) == 0) {
-            break; // we got em
-        }
-    }
-
-    // now read the image width and height
-    read_stdio(buf, 128);
-    im_width = atoi(buf);
-    read_stdio(buf, 128);
-    im_height = atoi(buf);
-
-    // now read the image itself
-    char *image_data = malloc(sizeof(char) * im_width*im_height*COLOR_CHANNEL_COUNT);
-    for(i=0; i<im_width*im_height*COLOR_CHANNEL_COUNT; i++) {
-        image_data[i] = getchar();
-    }
-
-    printf("Loaded image of size %d, shape (%d %d %d). Took %lluus\n", im_width*im_height*3, im_width, im_height, 3, to_us_since_boot(get_absolute_time()) - start_time);
-
-    start_time = to_us_since_boot(get_absolute_time());
-    // read from usb stdio waiting for kernel transmission start
-    while(1) {
-        read_stdio(buf, 128);
-        if (strcmp("TRANS_KERNEL", buf) == 0) {
-            break;
-        }
-    }
-
-    // now read the kernel width and height
-    read_stdio(buf, 128);
-    k_width = atoi(buf);
-    read_stdio(buf, 128);
-    k_height = atoi(buf);
-
-    // finally, allocate and read the kernel
-    signed char *kernel_data = malloc(sizeof(char) * k_width*k_height);
-    for(i=0; i<k_width*k_height; i++) {
-        kernel_data[i] = (signed char)getchar();
-    }
-
-    printf("Loaded kernel of size %d, shape (%d %d %d). Took %lluus\n", k_width*k_height, k_width, k_height, 1, to_us_since_boot(get_absolute_time()) - start_time);
-
-    
-    /* now we have an image and a kernel. */
-    /* we need to split the image up into four chunks and send the chunks along */
-    /* with the kernel to the compute nodes. Over i2c. */
-
-    // TODO: split and parallelize
-    char *image_out = malloc(sizeof(char) * im_width*im_height*COLOR_CHANNEL_COUNT);
-
-    printf("sending image dims...\n");
-    i2c_send_kim_dims(im_width, im_height, k_width, k_height);
-
-    printf("sending image data...\n");
-    i2c_send_kim_data(kernel_data, k_width, k_height, image_data, im_width, im_height);
-
-    printf("requesting image results...\n");
-    i2c_request_im_data(image_out, im_width, im_height);
-
-    // could transmit to each node only the data it needs to know about, and then reassemble on head
-    // so each node gets a quarter of the data and the head keeps track of which node got which quarter
-    // and re-assembles it afterwards
-
-
-    // send result image but have a path for client to request a resend
     while (1) {
-        // send image
-        pico_set_led(true);
-        for(i=0; i<im_width*im_height*COLOR_CHANNEL_COUNT; i++) {
-            putchar_raw(image_out[i]);
+        start_time = to_us_since_boot(get_absolute_time());
+
+        /* get the image and kernel from the client over serial */
+        // read from usb stdio waiting for image transmission start
+        while(1) {
+            read_stdio(buf, 128);
+            if (strcmp("TRANS_IMAGE", buf) == 0) {
+                break; // we got em
+            }
         }
-        fflush(stdout);
-        
-        // check response
-        pico_set_led(false);
+
+        // now read the image width and height
         read_stdio(buf, 128);
-        if (strcmp("REPEAT", buf) == 0) {
-            continue; // try again
+        im_width = atoi(buf);
+        read_stdio(buf, 128);
+        im_height = atoi(buf);
+
+        im_size = im_width*im_height*COLOR_CHANNEL_COUNT;
+
+        // now read the image itself
+        char *image_data = malloc(sizeof(char) * im_size);
+        for(i=0; i<im_size; i++) {
+            image_data[i] = getchar();
         }
-        else if (strcmp("ACK", buf) == 0) {
-            break; // we got em
-        } else {
-            pico_set_led(true); // unrecognized command
-            return 1;
+
+        printf("Loaded image of size %d, shape (%d %d %d). Took %lluus\n", im_width*im_height*3, im_width, im_height, 3, to_us_since_boot(get_absolute_time()) - start_time);
+
+        start_time = to_us_since_boot(get_absolute_time());
+        // read from usb stdio waiting for kernel transmission start
+        while(1) {
+            read_stdio(buf, 128);
+            if (strcmp("TRANS_KERNEL", buf) == 0) {
+                break;
+            }
+        }
+
+        // now read the kernel width and height
+        read_stdio(buf, 128);
+        k_width = atoi(buf);
+        read_stdio(buf, 128);
+        k_height = atoi(buf);
+
+        // finally, allocate and read the kernel
+        signed char *kernel_data = malloc(sizeof(char) * k_width*k_height);
+        for(i=0; i<k_width*k_height; i++) {
+            kernel_data[i] = (signed char)getchar();
+        }
+
+        printf("Loaded kernel of size %d, shape (%d %d %d). Took %lluus\n", k_width*k_height, k_width, k_height, 1, to_us_since_boot(get_absolute_time()) - start_time);
+
+        // finally, read the number of procs
+        read_stdio(buf, 128);
+        n_procs = atoi(buf);
+
+        printf("Using n_procs=%d\n", n_procs);
+        
+        /* now we have an image and a kernel. */
+        /* we need to split the image up into four chunks and send the chunks along */
+        /* with the kernel to the compute nodes. Over i2c. */
+
+
+        // send image dimensions
+        split = (im_size / n_procs) - (im_size / n_procs) % (im_width * COLOR_CHANNEL_COUNT);
+        for (i=0; i<n_procs; i++) {
+            // set starts and ends
+            start = split * i;
+            rows = split / (im_width * COLOR_CHANNEL_COUNT);
+            if (i == n_procs-1) rows = im_height - rows * (n_procs-1);
+
+            printf("%d: start=%d, rows=%d, bytes: %d\n", i, start, rows, rows*im_width*COLOR_CHANNEL_COUNT);
+
+            i2c_send_kim_dims(SLAVE_BASE_ADDRESS+i, im_width, rows, k_width, k_height);
+        }
+
+        // wait for data to be allocated
+        for (i=0; i<n_procs; i++) {
+            i2c_wait_kim_dims(SLAVE_BASE_ADDRESS+i);
+        }
+        printf("all boards allocated...\n");
+
+        // now transmit image data
+        for (i=0; i<n_procs; i++) {
+            i2c_send_kim_data(SLAVE_BASE_ADDRESS+i, kernel_data, k_width, k_height, image_data, im_width, im_height);
+        }
+
+        // and wait for the convolutions to finish :)
+        for (i=0; i<n_procs; i++) {
+            i2c_wait_kim_data(SLAVE_BASE_ADDRESS+i);
+        }
+        printf("all boards convolved!\n");
+
+        // get back the data!
+        char *image_out = calloc(im_size, sizeof(char));
+        for (i=0; i<n_procs; i++) {
+            // set starts and ends (should be same as first loop) (yes I know this i sbad coding practice)
+            start = split * i;
+            rows = split / (im_width * COLOR_CHANNEL_COUNT);
+            if (i == n_procs-1) rows = im_height - rows * (n_procs-1);
+
+            ret = i2c_request_im_data(SLAVE_BASE_ADDRESS+i, image_out+start, im_width, rows);
+            printf("ret: %d\n", ret);
+
+            for(j=0; j<rows*im_width*COLOR_CHANNEL_COUNT; j++) {
+                printf("%d: %x\n", j+start, image_out[j+start]);
+            }
+            putchar('\n');
+        }
+        printf("all data collected.\n");
+
+
+        //printf("sending image dims...\n");
+        //i2c_send_kim_dims(im_width, im_height, k_width, k_height);
+
+        //printf("sending image data...\n");
+        //i2c_send_kim_data(kernel_data, k_width, k_height, image_data, im_width, im_height);
+
+        //printf("requesting image results...\n");
+        //i2c_request_im_data(image_out, im_width, im_height);
+
+        // could transmit to each node only the data it needs to know about, and then reassemble on head
+        // so each node gets a quarter of the data and the head keeps track of which node got which quarter
+        // and re-assembles it afterwards
+
+
+        printf("ENDDBG\n");
+        // send result image back to client but have a path for client to request a resend
+        while (1) {
+            // send image
+            pico_set_led(true);
+            for(i=0; i<im_width*im_height*COLOR_CHANNEL_COUNT; i++) {
+                putchar_raw(image_out[i]);
+            }
+            fflush(stdout);
+            
+            // check response
+            pico_set_led(false);
+            read_stdio(buf, 128);
+            if (strcmp("REPEAT", buf) == 0) {
+                continue; // try again
+            }
+            else if (strcmp("ACK", buf) == 0) {
+                break; // we got em
+            } else {
+                pico_set_led(true); // unrecognized command, error and exit
+                return 1;
+            }
         }
     }
-
 }
