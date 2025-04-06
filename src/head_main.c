@@ -11,10 +11,6 @@
 
 #define LED_DELAY_MS    500
 
-
-
-
-
 /* function that reads stdio into a buf, stopping before buflen */
 void read_stdio(char *buf, int buflen)
 {
@@ -30,8 +26,6 @@ void read_stdio(char *buf, int buflen)
     }
     buf[buflen-1] = '\0';
 }
-
-
 
 int main() {
 	char buf[128];
@@ -95,21 +89,29 @@ int main() {
     k_height = atoi(buf);
 
     // finally, allocate and read the kernel
-    int *kernel_data = malloc(sizeof(int) * k_width*k_height);
+    signed char *kernel_data = malloc(sizeof(char) * k_width*k_height);
     for(i=0; i<k_width*k_height; i++) {
         kernel_data[i] = (signed char)getchar();
     }
 
     printf("Loaded kernel of size %d, shape (%d %d %d). Took %lluus\n", k_width*k_height, k_width, k_height, 1, to_us_since_boot(get_absolute_time()) - start_time);
 
-    // TODO TEMP: do a convolve on  the head
-    char *image_out = calloc(im_width*im_height*COLOR_CHANNEL_COUNT, sizeof(char));
-    convolve(image_data, im_width, im_height, kernel_data, k_width, k_height, 0, im_height, image_out);
-
     
     /* now we have an image and a kernel. */
     /* we need to split the image up into four chunks and send the chunks along */
     /* with the kernel to the compute nodes. Over i2c. */
+
+    // TODO: split and parallelize
+    char *image_out = malloc(sizeof(char) * im_width*im_height*COLOR_CHANNEL_COUNT);
+
+    printf("sending image dims...\n");
+    i2c_send_kim_dims(im_width, im_height, k_width, k_height);
+
+    printf("sending image data...\n");
+    i2c_send_kim_data(kernel_data, k_width, k_height, image_data, im_width, im_height);
+
+    printf("requesting image results...\n");
+    i2c_request_im_data(image_out, im_width, im_height);
 
     // could transmit to each node only the data it needs to know about, and then reassemble on head
     // so each node gets a quarter of the data and the head keeps track of which node got which quarter

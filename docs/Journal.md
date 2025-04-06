@@ -84,4 +84,7 @@ I have now implemented something akin to this, can't be bothered to note any dif
 What is key is that we can send and recv image data etc etc there is a protocol yadda yadda yay.
 
 Next up, make it actually convolve and start sending info from head to compute
-				
+
+(by the way, right now the comms functions send and wait for confirmation at once. This wont work once we start parallelizing)
+
+Okay, having the head node control one compute node was trivial as *beep*! Let's go! (censoring the language because this is technically academic work but yayyyyy)

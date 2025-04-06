@@ -73,15 +73,10 @@ if __name__ == "__main__":
         ser.write(kernel.flatten().astype(dtype=np.int8).tobytes())
 
         print('BOARD', ser.readline().decode(), end='')
+        print('BOARD', ser.readline().decode(), end='')
+        print('BOARD', ser.readline().decode(), end='')
+        print('BOARD', ser.readline().decode(), end='')
 
-        # now wait for response
-        #while True:
-        #    print(ser.read_until())
-
-        #out = np.empty_like(ima.flatten(), dtype=np.uint8)
-        #for i in range(len(out)):
-        #    out[i] = int(ser.readline())
-        #    print(ser.in_waiting, end=', ')
         received = False
         while not received:
             out = ser.read(im.width*im.height*3)
@@ -91,14 +86,9 @@ if __name__ == "__main__":
             else:
                 received = True
         
+        print("Acknowledging complete")
         ser.write((COMMAND_TRANS_ACK + '\n').encode('utf-8'))
         out = np.frombuffer(out, dtype=np.int8)
-        
-        while True:
-            print(ser.readline())
-
-
-        quit()
 
         f, ax = plt.subplots(2, 2)
 

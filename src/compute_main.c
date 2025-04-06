@@ -190,9 +190,6 @@ void core1_entry() {
     sleep_ms(1000);
     power_on_blink();
 
-    // set up slave i2c
-    setup_i2c();
-
     // split width and height integers for sending
     iw = 5;
     ih = 5;
@@ -230,7 +227,15 @@ int main() {
     // Enable UART so we can print status output
     stdio_init_all();
 
+    // set up slave i2c
+    setup_i2c();
+
+    power_on_blink();
+
+#if 0
+    // local testing via multicore
     multicore_launch_core1(core1_entry);
+#endif 
 
     while (1) {
         switch (state) {
