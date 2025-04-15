@@ -110,3 +110,14 @@ Well, are they perfect? Shouldn't I see everything except the first entry shifte
 (time marches on)
 
 So, all that indexing stuff? Difficult, but also just because I'm stupid. Solution was just to read back the same number of rows at the same start indices as we send in data, but backwards so that they overwrite properly
+
+Finally having just a small issue where it wants to write off the bottom edge.
+
+Falke: height=204
+ - nproc=4, last row=205
+ - nproc=2, last row=205
+ - nproc=1, last row=206?
+
+Also writes off for peace
+
+Not sure where this is coming from but I'm calling it here for a while. We can say that the cluster is functional I think, everything else is set dressing. Will need timing info for the writeup but that shouldn't be hard to add.

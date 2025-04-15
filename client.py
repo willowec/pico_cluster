@@ -13,10 +13,12 @@ import serial.tools.list_ports
 
 import matplotlib.pyplot as plt
 
+
 COMMAND_TRANS_IMSTART='TRANS_IMAGE'
 COMMAND_TRANS_KSTART='TRANS_KERNEL'
 COMMAND_TRANS_ACK='ACK'
 COMMAND_TRANS_REPEAT='REPEAT'
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -48,7 +50,7 @@ if __name__ == "__main__":
     print(f'Sending {args.imfile.name} to cluster at {port}')
 
     # connect to the PMI
-    with serial.serial_for_url(port, baudrate=115200, timeout=0.5, write_timeout=0.5) as ser:
+    with serial.serial_for_url(port, baudrate=115200, timeout=5, write_timeout=5) as ser:
 
         # tell cluster we are about to send an image
         ser.write((COMMAND_TRANS_IMSTART + '\n').encode('utf-8'))
@@ -92,7 +94,11 @@ if __name__ == "__main__":
         
         print("Acknowledging complete")
         ser.write((COMMAND_TRANS_ACK + '\n').encode('utf-8'))
-        out = np.frombuffer(out, dtype=np.int8)
+        out = np.frombuffer(out, dtype=np.int8).copy()
+
+        # clear last line to match padding
+        print(out.shape, im.width*3)
+        out[-im.width*3:] = 0
 
         f, ax = plt.subplots(2, 2)
 

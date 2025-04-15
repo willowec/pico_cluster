@@ -162,7 +162,6 @@ int main() {
             //     im_start_idxs[i] += (k_height/2) * im_width*COLOR_CHANNEL_COUNT;
             // }
             im_row_counts[i] -= (k_height/2);
-            if (i == n_procs-1) im_row_counts[i] -= (k_height/2);
 
             printf("receiving %d: start_row=%d, rows=%d, start=%d, bytes=%d\n", i, im_start_idxs[i]/(im_width*COLOR_CHANNEL_COUNT), im_row_counts[i], im_start_idxs[i], im_row_counts[i] * im_width * COLOR_CHANNEL_COUNT);
 

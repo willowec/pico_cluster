@@ -144,7 +144,6 @@ int i2c_request_im_data(uint8_t addr, unsigned char *out, int iw, int ih) {
     return ret;
 }
 
-
 void convolve(char *im, int im_width, int im_height, signed char *kernel, int k_width, int k_height, int y_start, int y_end, char *out_im)
 {
     int c, x, y, kx, ky;
