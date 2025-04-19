@@ -149,3 +149,10 @@ So that helped.
 I forget where I am tho.
 
 Whats going on now is the im_row_counts is being *reset* to 0 in the read im data loop. what the fuck is going on man?
+
+Yay!!! Figured it out, I was reading too much data off the end of the array and writing into funky places!
+Hurray for no memory safety!!!!!! :grinning emoji:
+
+Anyways, alls well.
+Reporting compute time as well now.
+ggs.

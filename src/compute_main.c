@@ -111,9 +111,6 @@ static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
             if (i < im_width*im_height*COLOR_CHANNEL_COUNT) {
                 // transmit image contents
                 i2c_write_byte_raw(i2c, output_image[i]);
-                if (i == im_width*im_height*COLOR_CHANNEL_COUNT-1) {
-                    gpio_put(LED_BLUE_PIN, 1);
-                }
             }
             else {
                 // finish it off with the 64 bit convolve runtime
@@ -146,7 +143,8 @@ static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
 
         // TODO: this breaks comms
         case COMPUTE_STATE_TRANS_RES:
-            if (i != 0) {
+            if (i >= im_width*im_height*COLOR_CHANNEL_COUNT+4) {
+                gpio_put(LED_BLUE_PIN, 1);
                 state = COMPUTE_STATE_IDLE;
             }
             break;
