@@ -31,13 +31,10 @@ int main() {
 	char buf[128];
     int i, j, ret;
     int im_width, im_height, k_width, k_height, im_size, split, n_procs, color, rows;
-    unsigned long long start_time;
+    uint64_t start_time, op_time;
 
     // Enable UART so we can print status output
     stdio_init_all();
-
-    // power-on blink
-    power_on_blink();
 
     // init the i2c as leader
     i2c_init(i2c_default, I2C_BAUDRATE);
@@ -46,7 +43,9 @@ int main() {
     gpio_pull_up(12);
     gpio_pull_up(13);
 
+    // power-on blink
     sleep_ms(1000);
+    power_on_blink();
 
     while (1) {
         start_time = to_us_since_boot(get_absolute_time());
@@ -154,32 +153,24 @@ int main() {
 
         // get back the data! Reverse order to ensure overwrites are properly applied
         char *image_out = calloc(im_size, sizeof(char));
+        if (image_out == NULL) {
+            printf("ERROR out of memory!\n");
+            return 1;
+        }
+
         for (i=n_procs-1; i>=0; i--) {
-            // TODO TODO only take back the non-padded parts
-            //im_start_idxs[i] += (k_height/2) * im_width*COLOR_CHANNEL_COUNT;
+            // temporarily save *all* results into original image array (and get compute time)
+            op_time = i2c_request_im_data(SLAVE_BASE_ADDRESS+i, image_data, im_width, im_row_counts[i]);
+            printf("received %d: start_row=%d, rows=%d, start=%d, bytes=%d. Convolve time was %lluus (%#llx)\n", i, im_start_idxs[i]/(im_width*COLOR_CHANNEL_COUNT), im_row_counts[i], im_start_idxs[i], im_row_counts[i]*im_width*COLOR_CHANNEL_COUNT, op_time, op_time);
 
-            // if (i > 0) {
-            //     im_start_idxs[i] += (k_height/2) * im_width*COLOR_CHANNEL_COUNT;
-            // }
+            // copy only the used parts of the result over into output array
             im_row_counts[i] -= (k_height/2);
-
-            printf("receiving %d: start_row=%d, rows=%d, start=%d, bytes=%d\n", i, im_start_idxs[i]/(im_width*COLOR_CHANNEL_COUNT), im_row_counts[i], im_start_idxs[i], im_row_counts[i] * im_width * COLOR_CHANNEL_COUNT);
-
-            // temporarily save results into original image array
-            // TODO copy into niput array temporarily then move?
-            ret = i2c_request_im_data(SLAVE_BASE_ADDRESS+i, image_out+im_start_idxs[i], im_width, im_row_counts[i]);
-
-            // TODO tmp overwrite
-            // for(j=0; j<im_row_counts[i]*im_width*COLOR_CHANNEL_COUNT; j++) {
-            //     color = 255 - (255/(n_procs+1))*i;
-            //     if (image_out[im_start_idxs[i]+j] != 0) color/=2;
-            //     image_out[im_start_idxs[i]+j] = color;
-            // }
+            memcpy(image_out+im_start_idxs[i], image_data, im_width*im_row_counts[i]*COLOR_CHANNEL_COUNT);
         }
         printf("all data collected.\n");
 
-
         printf("ENDDBG\n");
+
         // send result image back to client but have a path for client to request a resend
         while (1) {
             // send image

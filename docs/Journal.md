@@ -121,3 +121,31 @@ Falke: height=204
 Also writes off for peace
 
 Not sure where this is coming from but I'm calling it here for a while. We can say that the cluster is functional I think, everything else is set dressing. Will need timing info for the writeup but that shouldn't be hard to add.
+
+## 4/19/2025
+
+Adding status LEDs and also timing.
+We want to get memory allocation time and convolve time, so response for mem alloc and for convolve need to contain a uint64.
+
+Having an issue right now where the result is ALWAYS read as 4.
+What in the world?
+Nvm, the problem was (partially) that I was returning the result of the read_blocking (aka n bytes read) (which is 4) but still that means the buf was always 0 but im not only sending zeros so... hmm.
+
+I tried changing the idle state to 0xf0, but it is still reading only zeros.
+So this is strange. It means that it isn't reading the state, but it must be reading *something*.
+
+Well, maybe not. 
+LED debugging indicates that we never reach past the image end in our response.
+
+Ah. We don't even reach the end of the image... what on earth?
+
+Oh, I know why.
+
+It's because we intentionally read back (k_height/2) fewer rows.
+This is also probably why everything breaks on second run?
+We need to read entire result into a buffer and then only copy part of it. yea.
+
+So that helped. 
+I forget where I am tho.
+
+Whats going on now is the im_row_counts is being *reset* to 0 in the read im data loop. what the fuck is going on man?

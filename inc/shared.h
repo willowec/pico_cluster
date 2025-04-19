@@ -11,13 +11,16 @@ void i2c_wait_kim_dims(uint8_t addr);
 
 /* send kernel and image data, wait for confirmation of convolution complete */
 void i2c_send_kim_data(uint8_t addr, signed char *k, int kw, int kh, unsigned char *im, int iw, int ih);
-void i2c_wait_kim_data(uint8_t addr);
+void i2c_wait_kim_data(uint8_t addr); 
 
-/* get all output image data */
-int i2c_request_im_data(uint8_t addr, unsigned char *out, int iw, int ih);
+/* get all output image data, return convolve time */
+uint64_t i2c_request_im_data(uint8_t addr, unsigned char *out, int iw, int ih);
+
+/* get an unsigned long long from the compute pico */
+unsigned long long i2c_request_uint64(uint8_t addr);
 
 #define COMPUTE_STATE_BAD       -1
-#define COMPUTE_STATE_IDLE      0
+#define COMPUTE_STATE_IDLE      0xf0
 #define COMPUTE_STATE_DIMS_RD   1
 #define COMPUTE_STATE_DATA_RD   2
 #define COMPUTE_STATE_TRANS_RES 4

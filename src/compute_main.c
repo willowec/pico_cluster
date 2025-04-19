@@ -18,6 +18,8 @@
 #define ADDR_CONFIG0_PIN    16
 #define ADDR_CONFIG1_PIN    17
 
+#define LED_BLUE_PIN    0
+#define LED_YELLOW_PIN  1
 
 char *input_image = NULL;
 char *output_image = NULL;
@@ -28,12 +30,16 @@ signed char *kernel = NULL;
 int k_width;
 int k_height;
 
+uint64_t op_time = 0;
+
 static volatile int state = COMPUTE_STATE_IDLE;
 
 
 static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
     uint8_t val;
     static int i;
+
+    gpio_put(LED_YELLOW_PIN, 1);
 
     switch (event) {
     case I2C_SLAVE_RECEIVE:
@@ -99,15 +105,22 @@ static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
         }
         break;
     case I2C_SLAVE_REQUEST:
-        // we are sending the results!
         if (state == COMPUTE_STATE_TRANS_RES) {
-            i2c_write_byte_raw(i2c, output_image[i]);
-            i++;
+            // we are sending the results!
 
-            if (i == im_width*im_height*COLOR_CHANNEL_COUNT) {
-                printf("[INT] finished responding!!\n");
-                state = COMPUTE_STATE_IDLE;
+            if (i < im_width*im_height*COLOR_CHANNEL_COUNT) {
+                // transmit image contents
+                i2c_write_byte_raw(i2c, output_image[i]);
+                if (i == im_width*im_height*COLOR_CHANNEL_COUNT-1) {
+                    gpio_put(LED_BLUE_PIN, 1);
+                }
             }
+            else {
+                // finish it off with the 64 bit convolve runtime
+                i2c_write_byte_raw(i2c, op_time >> ((i-im_width*im_height*COLOR_CHANNEL_COUNT) * 8) & 0xff);
+            }
+
+            i++;
         } 
         else {
             // normally just send the state
@@ -116,6 +129,8 @@ static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
         
         break;
     case I2C_SLAVE_FINISH: // master has signalled Stop / Restart
+        gpio_put(LED_YELLOW_PIN, 0);
+
         switch (state) {
         case COMPUTE_STATE_DIMS_RD:
             // tell main to start allocating
@@ -124,15 +139,17 @@ static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
             break;
 
         case COMPUTE_STATE_DATA_RD:
-            // tell main to start allocating
+            // tell main to start convolving
             printf("[INT] Switching to state convolve\n");
             state = COMPUTE_STATE_CONVOLVE;
             break;
 
         // TODO: this breaks comms
-        // case COMPUTE_STATE_TRANS_RES:
-        //     state = COMPUTE_STATE_IDLE;
-        //     break;
+        case COMPUTE_STATE_TRANS_RES:
+            if (i != 0) {
+                state = COMPUTE_STATE_IDLE;
+            }
+            break;
 
         default:
             break;
@@ -172,61 +189,8 @@ static void setup_i2c() {
     i2c_slave_init(i2c1, addr, &i2c_slave_handler);
 }
 
-
-// TODO: core 1 serves as the fake head node
-void core1_entry() {
-
-    uint8_t buf[128];
-    uint8_t response;
-    int ret;
-    int i;
-    int iw, ih, kw, kh;
-
-    // set up master i2c
-    i2c_init(i2c0, I2C_BAUDRATE);
-    gpio_init(12);
-    gpio_init(13);
-    gpio_set_function(12, GPIO_FUNC_I2C);
-    gpio_set_function(13, GPIO_FUNC_I2C);
-    gpio_pull_up(12);
-    gpio_pull_up(13);
-
-    sleep_ms(1000);
-    power_on_blink();
-
-    // split width and height integers for sending
-    iw = 5;
-    ih = 5;
-    kw = 3;
-    kh = 3;
-
-    signed char *dummy_kernel = malloc(kw*kh);
-    signed char *dummy_image = malloc(iw*ih*COLOR_CHANNEL_COUNT);
-
-    for(i=0; i<kw*kh; i++) dummy_kernel[i] = 1;
-    for(i=0; i<iw*ih*COLOR_CHANNEL_COUNT; i++) dummy_image[i] = 1;
-
-    // printf("Sending dimensions...\n");
-    // i2c_send_kim_dims(iw, ih, kw, kh);
-    // printf("Allocating must be complete\n");
-
-
-    // printf("Sending kim data...\n");
-    // i2c_send_kim_data(dummy_kernel, kw, kh, dummy_image, iw, ih);
-    // printf("Convolve must be complete\n");
-
-
-    // printf("Requesting results...\n");    
-    // i2c_request_im_data(buf, iw, ih);
-    // printf("Received %d results!\n", ret);
-    // for(i=0; i<iw*ih*COLOR_CHANNEL_COUNT; i++) {
-    //     printf("%d: in=%#x out=%#x\n", i, dummy_image[i], buf[i]);
-    // }
-
-}
-
 int main() {
-    int i;
+    uint64_t start_time;
 
     // Enable UART so we can print status output
     stdio_init_all();
@@ -234,23 +198,28 @@ int main() {
     // set up slave i2c
     setup_i2c();
 
+    // set up LEDs
+    gpio_init(LED_YELLOW_PIN);
+    gpio_set_dir(LED_YELLOW_PIN, GPIO_OUT);
+    gpio_init(LED_BLUE_PIN);
+    gpio_set_dir(LED_BLUE_PIN, GPIO_OUT);
+
     power_on_blink();
 
-#if 0
-    // local testing via multicore
-    multicore_launch_core1(core1_entry);
-#endif 
-
+    // main loop
     while (1) {
         switch (state) {
         case COMPUTE_STATE_IDLE:
-            sleep_ms(50);
+            // blink rate needs to be really fast so as to reduce latency exiting idle
+            sleep_ms(1);
             pico_set_led(true);
-            sleep_ms(50);
+            sleep_ms(1);
             pico_set_led(false);
             break;
 
         case COMPUTE_STATE_ALLOCATE:
+            gpio_put(LED_BLUE_PIN, 1);
+
             // allocate image and kernel arrays
             if (input_image != NULL)    free(input_image);
             if (output_image != NULL)   free(output_image);
@@ -269,20 +238,24 @@ int main() {
                 break;
             }
 
+            gpio_put(LED_BLUE_PIN, 0);
             state = COMPUTE_STATE_IDLE;
             break;
 
         case COMPUTE_STATE_CONVOLVE:
-            // convolve on the data
+            gpio_put(LED_BLUE_PIN, 1);
+
             printf("[WORKER] convolving...\n");
-
+            
+            // convolve on the data
+            start_time = to_us_since_boot(get_absolute_time());
             convolve(input_image, im_width, im_height, kernel, k_width, k_height, 0, im_height, output_image);
+            op_time = to_us_since_boot(get_absolute_time()) - start_time;
 
+            gpio_put(LED_BLUE_PIN, 0);
             state = COMPUTE_STATE_IDLE;
             break;
         }
-
-
     }
 
     return 0;
