@@ -156,3 +156,12 @@ Hurray for no memory safety!!!!!! :grinning emoji:
 Anyways, alls well.
 Reporting compute time as well now.
 ggs.
+
+## 4/28/2025
+
+Cleaning everything up for the presentation tomorrow. 
+Added head node recording and reporting times, but forgot to actually receive on client. 
+Thus this result which is quite silly i think:
+![evil mob](./evil_mob.png)
+
+Anyway, just need to add reporting of times to the client.

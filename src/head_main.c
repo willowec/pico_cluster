@@ -31,7 +31,11 @@ int main() {
 	char buf[128];
     int i, j, ret;
     int im_width, im_height, k_width, k_height, im_size, split, n_procs, color, rows;
+
     uint64_t start_time, op_time;
+    uint64_t trans_times[4];
+    uint64_t conv_times[4];
+    uint64_t recv_times[4];
 
     // Enable UART so we can print status output
     stdio_init_all();
@@ -48,8 +52,6 @@ int main() {
     power_on_blink();
 
     while (1) {
-        start_time = to_us_since_boot(get_absolute_time());
-
         /* get the image and kernel from the client over serial */
         // read from usb stdio waiting for image transmission start
         while(1) {
@@ -73,9 +75,8 @@ int main() {
             image_data[i] = getchar();
         }
 
-        printf("Loaded image of size %d, shape (%d %d %d). Took %lluus\n", im_width*im_height*3, im_width, im_height, 3, to_us_since_boot(get_absolute_time()) - start_time);
+        printf("Loaded image of size %d, shape (%d %d %d)\n", im_width*im_height*3, im_width, im_height, 3);
 
-        start_time = to_us_since_boot(get_absolute_time());
         // read from usb stdio waiting for kernel transmission start
         while(1) {
             read_stdio(buf, 128);
@@ -96,7 +97,7 @@ int main() {
             kernel_data[i] = (signed char)getchar();
         }
 
-        printf("Loaded kernel of size %d, shape (%d %d %d). Took %lluus\n", k_width*k_height, k_width, k_height, 1, to_us_since_boot(get_absolute_time()) - start_time);
+        printf("Loaded kernel of size %d, shape (%d %d %d)", k_width*k_height, k_width, k_height, 1);
 
         // finally, read the number of procs
         read_stdio(buf, 128);
@@ -107,6 +108,9 @@ int main() {
         /* now we have an image and a kernel. */
         /* we need to split the image up into four chunks and send the chunks along */
         /* with the kernel to the compute nodes. Over i2c. */
+
+        // collect time for non-usb transmission
+        start_time = to_us_since_boot(get_absolute_time());
 
         // first, prep splits
         int *im_start_idxs = malloc(n_procs * sizeof(int));
@@ -131,7 +135,9 @@ int main() {
 
         // send image dimensions
         for (i=0; i<n_procs; i++) {
+            op_time = to_us_since_boot(get_absolute_time());
             i2c_send_kim_dims(SLAVE_BASE_ADDRESS+i, im_width, im_row_counts[i], k_width, k_height);
+            trans_times[i] = to_us_since_boot(get_absolute_time()) - op_time;
         }
 
         // wait for data to be allocated
@@ -142,7 +148,9 @@ int main() {
 
         // now transmit image data
         for (i=0; i<n_procs; i++) {
+            op_time = to_us_since_boot(get_absolute_time());
             i2c_send_kim_data(SLAVE_BASE_ADDRESS+i, kernel_data, k_width, k_height, image_data+im_start_idxs[i], im_width, im_row_counts[i]); 
+            trans_times[i] += to_us_since_boot(get_absolute_time()) - op_time;
         }
 
         // and wait for the convolutions to finish :)
@@ -160,8 +168,11 @@ int main() {
 
         for (i=n_procs-1; i>=0; i--) {
             // temporarily save *all* results into original image array (and get compute time)
-            op_time = i2c_request_im_data(SLAVE_BASE_ADDRESS+i, image_data, im_width, im_row_counts[i]);
-            printf("received %d: start_row=%d, rows=%d, start=%d, bytes=%d. Convolve time was %lluus (%#llx)\n", i, im_start_idxs[i]/(im_width*COLOR_CHANNEL_COUNT), im_row_counts[i], im_start_idxs[i], im_row_counts[i]*im_width*COLOR_CHANNEL_COUNT, op_time, op_time);
+            op_time = to_us_since_boot(get_absolute_time());
+            conv_times[i] = i2c_request_im_data(SLAVE_BASE_ADDRESS+i, image_data, im_width, im_row_counts[i]);
+            recv_times[i] = to_us_since_boot(get_absolute_time()) - op_time;
+
+            printf("received %d: start_row=%d, rows=%d, start=%d, bytes=%d. Convolve time was %lluus (%#llx)\n", i, im_start_idxs[i]/(im_width*COLOR_CHANNEL_COUNT), im_row_counts[i], im_start_idxs[i], im_row_counts[i]*im_width*COLOR_CHANNEL_COUNT, conv_times[i], conv_times[i]);
 
             // copy only the used parts of the result over into output array
             im_row_counts[i] -= (k_height/2);
@@ -170,6 +181,12 @@ int main() {
         printf("all data collected.\n");
 
         printf("ENDDBG\n");
+
+        // send timing info for the run
+        for (i=0; i<n_procs; i++) printf("%llu\n", trans_times[i]);
+        for (i=0; i<n_procs; i++) printf("%llu\n", conv_times[i]);
+        for (i=0; i<n_procs; i++) printf("%llu\n", recv_times[i]);
+        printf("%llu\n", to_us_since_boot(get_absolute_time()) - start_time); // send non-usb time as well
 
         // send result image back to client but have a path for client to request a resend
         while (1) {

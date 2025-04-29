@@ -1,6 +1,7 @@
 # Other
 build/
 .vscode
+out
 # Prerequisites
 *.d
 
