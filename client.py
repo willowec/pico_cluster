@@ -3,7 +3,7 @@ Python script that allows for sending jobs to the cluster
 '''
 
 from pathlib import Path
-from PIL import Image, ImageChops
+from PIL import Image, ImageChops, ImageFilter
 import argparse
 import numpy as np
 
@@ -43,6 +43,10 @@ if __name__ == "__main__":
     kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], dtype=np.int8)
     if args.filter_size:
         kernel = np.ones((args.filter_size, args.filter_size))
+        print(f'Using generated filter!')
+
+    # generate the ground truth
+    im_gt = im.filter(ImageFilter.Kernel(kernel.shape, kernel.flatten()))
 
     # look for ports
     ports = [tuple(p)[0] for p in list(serial.tools.list_ports.comports())]
@@ -58,7 +62,7 @@ if __name__ == "__main__":
     print(f'Sending {args.imfile.name} to cluster at {port}')
 
     # connect to the PMI
-    with serial.serial_for_url(port, baudrate=115200, timeout=5, write_timeout=5) as ser:
+    with serial.serial_for_url(port, baudrate=115200, timeout=10, write_timeout=10) as ser:
 
         trans_times = []
         conv_times = []
@@ -135,14 +139,18 @@ if __name__ == "__main__":
             im_out = Image.fromarray(out.reshape((im.height, im.width, 3)), 'RGB')
 
             ax[0][0].imshow(im)
-            #ax[0][0].set_xticks(np.arange(im.width))
-            #ax[0][0].set_yticks(np.arange(im.height))
+            ax[0][0].set_title('input')
+
             ax[0][1].imshow(im_out)
-            #ax[0][1].set_xticks(np.arange(im.width))
-            #ax[0][1].set_yticks(np.arange(im.height))
-            ax[1][0].imshow(ImageChops.difference(im, im_out))
-            #ax[1][0].set_xticks(np.arange(im.width))
-            #ax[1][0].set_yticks(np.arange(im.height))
+            ax[0][1].set_title('output')
+
+            ax[1][0].imshow(ImageChops.difference(im_gt, im_out))
+            ax[1][0].set_title('out - gt')
+
+            ax[1][1].imshow(im_gt)
+            ax[1][1].set_title('ground truth')
+
+            plt.tight_layout()
             plt.show()
 
 
@@ -171,6 +179,8 @@ if __name__ == "__main__":
 
             data['kernel_dims'] = list(kernel.shape)
             data['image_dims'] = [im.width, im.height]
+
+            data['n_procs'] = args.n_procs
 
             out_dir = Path('out')
             out_dir.mkdir(exist_ok=True, parents=True)

@@ -97,7 +97,7 @@ int main() {
             kernel_data[i] = (signed char)getchar();
         }
 
-        printf("Loaded kernel of size %d, shape (%d %d %d)", k_width*k_height, k_width, k_height, 1);
+        printf("Loaded kernel of size %d, shape (%d %d %d)\n", k_width*k_height, k_width, k_height, 1);
 
         // finally, read the number of procs
         read_stdio(buf, 128);
@@ -166,7 +166,7 @@ int main() {
             return 1;
         }
 
-        for (i=n_procs-1; i>=0; i--) {
+        for (i=0; i<n_procs; i++) {
             // temporarily save *all* results into original image array (and get compute time)
             op_time = to_us_since_boot(get_absolute_time());
             conv_times[i] = i2c_request_im_data(SLAVE_BASE_ADDRESS+i, image_data, im_width, im_row_counts[i]);
@@ -176,7 +176,7 @@ int main() {
 
             // copy only the used parts of the result over into output array
             im_row_counts[i] -= (k_height/2);
-            memcpy(image_out+im_start_idxs[i], image_data, im_width*im_row_counts[i]*COLOR_CHANNEL_COUNT);
+            memcpy(image_out+im_start_idxs[i]+im_width*(k_height/2)*COLOR_CHANNEL_COUNT, image_data+im_width*(k_height/2)*COLOR_CHANNEL_COUNT, im_width*im_row_counts[i]*COLOR_CHANNEL_COUNT);
         }
         printf("all data collected.\n");
 
