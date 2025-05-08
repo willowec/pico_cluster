@@ -165,3 +165,10 @@ Thus this result which is quite silly i think:
 ![evil mob](./evil_mob.png)
 
 Anyway, just need to add reporting of times to the client.
+
+## 5/8/2025
+
+It came up during my presentation of the project last week that since I iterated over the picos forward to send the jobs, and backwards to read the results, the last pico to get it's job would actually hold up the whole line - all picos would need to wait for it to finish its job before they could start transmitting their results.
+
+This kind of completely undermines the "parallel" part of this project, so I went ahead and revised that so that both the jobs and the results are transmitted and requested in the same order.
+I should generate a nice figure to explain this in the paper.

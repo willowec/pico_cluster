@@ -150,6 +150,11 @@ if __name__ == "__main__":
             ax[1][1].imshow(im_gt)
             ax[1][1].set_title('ground truth')
 
+            # disable ticks
+            for a in ax.flatten():
+                a.get_yaxis().set_visible(False)
+                a.get_xaxis().set_visible(False)
+
             plt.tight_layout()
             plt.show()
 
