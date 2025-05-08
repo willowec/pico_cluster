@@ -9,86 +9,56 @@ import json, argparse
 from pathlib import Path
 
 
-def plot_nprocs(runs):
-    head_times = []
-    total_times = []
-    conv_times_times = []
-    trans_recv_times_times = []
-
-    n_procs = []
-
-    for i, run in enumerate(runs):
-        n_procs.append(run['n_procs'])
-        head_times.append(run['head_time'] / 1e6)
-        total_times.append(run['total_time'] / 1e6)
-
-        conv_times_times.append(run['conv_times'])
-        conv_times_times[i] = [x / 1e6 for x in conv_times_times[i]]
-
-        trans_recv_times_times.append([(x + y) / 1e6 for x, y in zip(run['trans_times'], run['recv_times'])])
 
 
-    f, ax = plt.subplots(2, 2)
-    ax[0][0].plot(n_procs, head_times)
-    ax[0][0].set_ylim([0, max(head_times) + 1])
-    ax[0][0].set_title('total head node time')
+def plot_timeline(data: dict):
+    '''
+    plot an execution timeline
+    '''
+    n_procs = data['n_procs']
+    trans = np.array(data['trans_times']) / 1e6
+    convs = np.array(data['conv_times']) / 1e6
+    recvs = np.array(data['recv_times']) / 1e6
 
-    for i, procs in enumerate(n_procs):
-        print(procs, conv_times_times)
-        ax[0][1].scatter([procs for p in range(procs)], conv_times_times[i])
-    ax[0][1].set_title('convolution times')
+    # we will use a broken barh to make a timeline
+    fig, ax = plt.subplots(figsize=(10, 4))
 
-    for i, procs in enumerate(n_procs):
-        print(procs, trans_recv_times_times)
-        ax[1][1].scatter([procs for p in range(procs)], trans_recv_times_times[i])
-    ax[1][1].set_title('i2c communication times')
+    procs_transrange = []
+    procs_convsrange = []
+    procs_recvsrange = []
+
+    # create start/stop tuples for each proc
+    for i in range(n_procs):
+        procs_transrange.append((sum(trans[0:i]), trans[i]))
+        procs_convsrange.append((sum(trans[0:i])+trans[i], convs[i]))
+        procs_recvsrange.append((sum(trans)+sum(recvs[0:i]), recvs[i]))
+
+    # plot trans times
+    for i in range(n_procs):
+        ax.broken_barh([procs_transrange[i]], (i-.5, 1), color='orange')
+        ax.broken_barh([procs_convsrange[i]], (i-.5, 1), color='blue')
+        ax.broken_barh([procs_recvsrange[i]], (i-.5, 1), color='green')
 
 
+    ax.set_yticks(range(n_procs), labels=[f'Pico {p}' for p in range(n_procs)])
+    ax.set_xlabel('time (seconds)')
+    ax.legend(['trans job', 'compute', 'trans results'], loc='upper left')
 
-    ax[1][0].plot(n_procs, total_times)
-    ax[1][0].set_ylim([0, max(total_times) + 1])
-    ax[1][0].set_title('total run time')
-
-    f.supxlabel('n picos')
-    f.suptitle('3x3 sharpen filter over a 160x200 image, varying n picos')
-    f.tight_layout()
+    plt.tight_layout()
     plt.show()
-
 
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_dir', type=Path, default=Path('out'), help='path of the data directory')
-    parser.add_argument('--explore', action='store_true', help='print info')
-    parser.add_argument('--plot_nprocs', action='store_true')
-    parser.add_argument('--k_size', type=int, help='if specified, only consider runs with this kernel size')
-    parser.add_argument('--im_width', type=int, help='if specified, only consider runs with this image width')
-
+    parser.add_argument('path', type=Path, help='path to the directory or individual j file to plot from')
+    parser.add_argument('--timeline', action='store_true', help='plot the timeline (path must be one json file)')
+    parser.add_argument('--procs', action='store_true', help='plot the n_procs variance')
     args = parser.parse_args()
 
-    # load runs from the data dir
-    runs = []
-    for jfile in args.data_dir.iterdir():
-        run = json.loads(jfile.read_text())
+    if args.timeline:
+        assert args.path.is_file()
+        plot_timeline(json.loads(args.path.read_text()))
 
-        if args.k_size:
-            if run['kernel_dims'][0] != args.k_size:
-                continue
-
-        if args.im_width:
-            if run['image_dims'][0] != args.im_width:
-                continue
-
-        runs.append(run)
-
-    if args.explore:
-        for run in runs:
-            print(f"{run['kernel_dims']}, {run['image_dims']}", end='')
-            if 'n_procs' in run.keys():
-                print(f" n_procs={run['n_procs']}", end='')
-            print('')
-
-
-    if args.plot_nprocs:
-        plot_nprocs(runs)
+    if args.procs:
+        assert args.path.is_dir()

@@ -158,7 +158,6 @@ if __name__ == "__main__":
             plt.tight_layout()
             plt.show()
 
-
         print('Trans times')
         for i in range(args.n_procs):
             print(trans_times[i])
@@ -190,4 +189,5 @@ if __name__ == "__main__":
             out_dir = Path('out')
             out_dir.mkdir(exist_ok=True, parents=True)
 
-            out_dir.joinpath(datetime.datetime.now().isoformat().split('.')[0].replace(':', '-')).write_text(json.dumps(data))
+            out_path = out_dir.joinpath(f"{args.n_procs}_{ima.shape}_{kernel.shape}_{str(time.time()).split('.')[-1][-4:]}.json".replace(", ", "-"))
+            out_path.write_text(json.dumps(data))

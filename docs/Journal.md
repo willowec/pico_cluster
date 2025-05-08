@@ -172,3 +172,8 @@ It came up during my presentation of the project last week that since I iterated
 
 This kind of completely undermines the "parallel" part of this project, so I went ahead and revised that so that both the jobs and the results are transmitted and requested in the same order.
 I should generate a nice figure to explain this in the paper.
+
+TODO:
+ - gen compute plots for different proc counts
+ - gen compute time graph (when each pico is transmitting, etc)
+ - get speedup and parallel efficiency

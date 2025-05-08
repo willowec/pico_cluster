@@ -1,0 +1,1 @@
+{"trans_times": [46665, 56431], "conv_times": [236, 191], "recv_times": [44765, 54565], "head_time": 208969, "total_time": 232733, "kernel_dims": [3, 3], "image_dims": [16, 14], "n_procs": 2}
