@@ -24,7 +24,6 @@ add_executable(compute_pico
     src/shared.c
 )
 
-
 target_link_libraries(head_pico pico_stdlib pico_multicore pico_i2c_slave hardware_i2c)
 pico_enable_stdio_usb(head_pico 1)
 pico_enable_stdio_uart(head_pico 0)

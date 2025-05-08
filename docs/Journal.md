@@ -38,7 +38,7 @@ More things work :)
 
 Time to figure out why the result image isn't zero-padded on the bottom edge:
 
-![Peace sign thru a sharpen filter](./bad_padding.png)
+![Peace sign thru a sharpen filter](./img/bad_padding.png)
 
 (I was using im_width where I should have used im_height).
 Annoyingly, serial still regularly drops bytes when reading the output image but really what can you do? I guess have a system to request re-sends and stuff...
@@ -91,17 +91,17 @@ Okay, having the head node control one compute node was trivial as *beep*! Let's
 
 So, after many hours and getting more tired, here's where I'm leaving this:
 
-![A screenshot of the peace.png image being badly broadcast](./bad_parallel_nproc2.png)
+![A screenshot of the peace.png image being badly broadcast](./img/bad_parallel_nproc2.png)
 
 ## 4/6/2025
 
 The finish line is on t he horizon. I've got things *mostly* working, just having trouble with the reassembling of the output image at the end.
 
-![A screenshot of the peace.png image having some black rows in the output](./overlap_problems.png)
+![A screenshot of the peace.png image having some black rows in the output](./img/overlap_problems.png)
 
 So something might be going on with the indexing? but then again, probably not! Look at what the output is for colors based solely on the indices and not the results: 
 
-![A screenshot of the peace.png image colored by process](./overlap_problems_indices.png)
+![A screenshot of the peace.png image colored by process](./img/overlap_problems_indices.png)
 
 These indies are perfect, so what really gives?
 
@@ -162,7 +162,7 @@ ggs.
 Cleaning everything up for the presentation tomorrow. 
 Added head node recording and reporting times, but forgot to actually receive on client. 
 Thus this result which is quite silly i think:
-![evil mob](./evil_mob.png)
+![evil mob](./img/evil_mob.png)
 
 Anyway, just need to add reporting of times to the client.
 

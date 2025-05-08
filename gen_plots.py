@@ -15,7 +15,6 @@ def plot_nprocs(runs):
     conv_times_times = []
     trans_recv_times_times = []
 
-
     n_procs = []
 
     for i, run in enumerate(runs):
