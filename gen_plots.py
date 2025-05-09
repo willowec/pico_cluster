@@ -89,6 +89,10 @@ def plot_procs(datas: list[dict]):
         procs_dict[procs]['conv_times'] = (procs_dict[procs]['conv_times'] / procs_dict[procs]['count'])
         procs_dict[procs]['recv_times'] = (procs_dict[procs]['recv_times'] / procs_dict[procs]['count'])
 
+    # 1.5 print some results
+    for proc in procs_dict.keys():
+        print(f"proc: {proc} headtime={procs_dict[proc]['head_time']}, runtime={procs_dict[proc]['total_time']}")
+
     # 2. produce (labeled?) scatter
     f, ax = plt.subplots(1, 3, figsize=(12, 5))
     for i, procs in enumerate(procs_set):
@@ -96,15 +100,15 @@ def plot_procs(datas: list[dict]):
         ax[1].scatter([i for x in range(procs)], procs_dict[procs]['conv_times'])
         ax[2].scatter([i for x in range(procs)], procs_dict[procs]['recv_times'])
     
-    ax[0].set_xticks(range(len(procs_set)), labels=[f'Pico {p}' for p in procs_set])
-    ax[1].set_xticks(range(len(procs_set)), labels=[f'Pico {p}' for p in procs_set])
-    ax[2].set_xticks(range(len(procs_set)), labels=[f'Pico {p}' for p in procs_set])
+    ax[0].set_xticks(range(len(procs_set)), labels=[f'{p} Picos' for p in procs_set])
+    ax[1].set_xticks(range(len(procs_set)), labels=[f'{p} Picos' for p in procs_set])
+    ax[2].set_xticks(range(len(procs_set)), labels=[f'{p} Picos' for p in procs_set])
     ax[0].set_ylim(bottom=0)
     ax[1].set_ylim(bottom=0)
     ax[2].set_ylim(bottom=0)
-    ax[0].set_title('(a) time transmitting')
-    ax[1].set_title('(b) time computing')
-    ax[2].set_title('(c) time retrieving')
+    ax[0].set_title('(a) Time transmitting')
+    ax[1].set_title('(b) Time computing')
+    ax[2].set_title('(c) Time retrieving')
 
     f.supylabel('Time (microseconds)')
 
