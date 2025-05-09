@@ -21,7 +21,7 @@ def plot_timeline(data: dict):
     recvs = np.array(data['recv_times']) / 1e6
 
     # we will use a broken barh to make a timeline
-    fig, ax = plt.subplots(figsize=(10, 4))
+    fig, ax = plt.subplots(figsize=(12, 4))
 
     procs_transrange = []
     procs_convsrange = []
@@ -48,6 +48,70 @@ def plot_timeline(data: dict):
     plt.show()
 
 
+def plot_procs(datas: list[dict]):
+    '''
+    produce a plot across the n_procs
+    '''
+
+    # get each proc count that exists in datas
+    procs_set = set()
+    for data in datas:
+        procs_set.add(data['n_procs'])
+
+        # and also np array it all
+        for k in data.keys():
+            if isinstance(data[k], list):
+                data[k] = np.array(data[k])
+    procs_set = list(procs_set)
+
+    # 1. average data per point
+    procs_dict = {}
+    for procs in procs_set:
+        for data in datas:
+            if data['n_procs'] == procs:
+                if procs not in procs_dict.keys():
+                    # create entry if not exist
+                    procs_dict[procs] = data
+                    procs_dict[procs]['count'] = 1
+                else:
+                    # add to entry if exist
+                    procs_dict[procs]['count'] += 1
+                    procs_dict[procs]['head_time'] += data['head_time']
+                    procs_dict[procs]['total_time'] += data['total_time']
+                    procs_dict[procs]['trans_times'] += data['trans_times']
+                    procs_dict[procs]['conv_times'] += data['conv_times']
+                    procs_dict[procs]['recv_times'] += data['recv_times']
+
+        # div to mean each
+        procs_dict[procs]['head_time'] /= procs_dict[procs]['count']
+        procs_dict[procs]['total_time'] /= procs_dict[procs]['count']
+        procs_dict[procs]['trans_times'] = (procs_dict[procs]['trans_times'] / procs_dict[procs]['count'])
+        procs_dict[procs]['conv_times'] = (procs_dict[procs]['conv_times'] / procs_dict[procs]['count'])
+        procs_dict[procs]['recv_times'] = (procs_dict[procs]['recv_times'] / procs_dict[procs]['count'])
+
+    # 2. produce (labeled?) scatter
+    f, ax = plt.subplots(1, 3, figsize=(12, 5))
+    for i, procs in enumerate(procs_set):
+        ax[0].scatter([i for x in range(procs)], procs_dict[procs]['trans_times'])
+        ax[1].scatter([i for x in range(procs)], procs_dict[procs]['conv_times'])
+        ax[2].scatter([i for x in range(procs)], procs_dict[procs]['recv_times'])
+    
+    ax[0].set_xticks(range(len(procs_set)), labels=[f'Pico {p}' for p in procs_set])
+    ax[1].set_xticks(range(len(procs_set)), labels=[f'Pico {p}' for p in procs_set])
+    ax[2].set_xticks(range(len(procs_set)), labels=[f'Pico {p}' for p in procs_set])
+    ax[0].set_ylim(bottom=0)
+    ax[1].set_ylim(bottom=0)
+    ax[2].set_ylim(bottom=0)
+    ax[0].set_title('(a) time transmitting')
+    ax[1].set_title('(b) time computing')
+    ax[2].set_title('(c) time retrieving')
+
+    f.supylabel('Time (microseconds)')
+
+    plt.tight_layout()
+    plt.show()
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -62,3 +126,9 @@ if __name__ == "__main__":
 
     if args.procs:
         assert args.path.is_dir()
+
+        datas = []
+        for p in args.path.iterdir():
+            datas.append(json.loads(p.read_text()))
+
+        plot_procs(datas)
