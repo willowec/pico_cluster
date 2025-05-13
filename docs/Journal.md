@@ -177,3 +177,7 @@ TODO:
  - gen compute plots for different proc counts
  - gen compute time graph (when each pico is transmitting, etc)
  - get speedup and parallel efficiency
+
+## 5/9/2025
+
+Submitted the report! Yippee!! I should clean up this repo a little and maybe make a demo video sometime (never), i liked this project tho.
